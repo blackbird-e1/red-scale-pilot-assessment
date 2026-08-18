@@ -21,10 +21,19 @@ class TelemetryPoint(BaseModel):
     throttle_percent: float
 
 
+class VisualObservation(BaseModel):
+    category: str
+    finding: str
+    confidence: float = Field(ge=0, le=1)
+    source: str
 class Assessment(BaseModel):
     features: FlightFeatures
 
     violations: list[RuleViolation]
+
+    visual_observations: list[VisualObservation] = Field(
+    default_factory=list
+    )
 
     risk_score: float = Field(ge=0, le=100)
 

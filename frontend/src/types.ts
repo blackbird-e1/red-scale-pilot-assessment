@@ -82,3 +82,10 @@ export interface DebriefResponse {
   areas_of_concern: string[];
   recommendations: string[];
 }
+
+export interface VisualObservation {
+  category: string;
+  finding: string;
+  confidence: number;
+  source: string;
+}

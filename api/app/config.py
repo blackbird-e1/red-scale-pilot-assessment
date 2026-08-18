@@ -16,6 +16,11 @@ class Settings(BaseSettings):
         alias="GROQ_MODEL",
     )
 
+    groq_vision_model: str = Field(
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        alias="GROQ_VISION_MODEL",
+    )
+
     # PostgreSQL
     # Not required for the MVP yet.
     database_url: str | None = Field(

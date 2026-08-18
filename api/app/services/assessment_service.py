@@ -28,7 +28,11 @@ from app.core.features import extract_features
 from app.core.ml import predict_risk
 from app.core.parser import parse_fdr
 from app.core.rules import evaluate_rules
-from app.models.assessment import Assessment, TelemetryPoint
+from app.models.assessment import (
+    Assessment,
+    TelemetryPoint,
+    VisualObservation,
+)
 
 
 MAX_TELEMETRY_POINTS = 240
@@ -100,7 +104,10 @@ def build_telemetry(df: pd.DataFrame) -> list[TelemetryPoint]:
     return telemetry
 
 
-def assess_flight(csv_path: Path) -> Assessment:
+def assess_flight(
+    csv_path: Path,
+    visual_observations: list[VisualObservation] | None = None,
+) -> Assessment:
     """
     Execute the complete flight assessment pipeline.
     """
@@ -151,6 +158,7 @@ def assess_flight(csv_path: Path) -> Assessment:
     return Assessment(
         features=features,
         violations=violations,
+        visual_observations=visual_observations or [],
         risk_score=risk_score,
         overall_rating=overall_rating,
         telemetry=telemetry,

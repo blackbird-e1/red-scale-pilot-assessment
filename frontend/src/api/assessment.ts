@@ -2,7 +2,7 @@ import type { Assessment } from '../types';
 
 const API_BASE_URL = '/api/v1';
 
-export async function assessFlight(file: File): Promise<Assessment> {
+export async function assessFlight(file: File, image?: File,): Promise<Assessment> {
   const formData = new FormData();
   formData.append('file', file);
 
