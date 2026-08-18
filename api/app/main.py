@@ -18,6 +18,7 @@ from app.routers.assessment import router as assessment_router
 from app.routers.health import router as health_router
 from app.routers.debrief import router as debrief_router
 from app.routers.chat import router as chat_router
+from app.routers.auth import router as auth_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -136,5 +137,17 @@ app.include_router(
 
 app.include_router(
     chat_router,
+    prefix="/api/v1",
+)
+
+# Authentication
+app.include_router(
+    auth_router,
+    prefix="/api/v1",
+)
+
+# Flight assessment
+app.include_router(
+    assessment_router,
     prefix="/api/v1",
 )

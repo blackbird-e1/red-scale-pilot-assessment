@@ -4,6 +4,9 @@ import FDRUpload from './components/FDRUpload';
 import AssessmentResults from './components/AssessmentResults';
 import type { Assessment } from './types';
 import ChatAssistant from './components/ChatAssistant';
+import Login from './components/Login';
+import type { UserRole } from './api/auth';
+import TraineeDashboard from './components/TraineeDashboard';
 
 const CAPABILITIES = [
   {
@@ -72,6 +75,24 @@ function WorkflowNode({
 }
 
 export default function App() {
+  const [auth, setAuth] = useState<{
+    username: string;
+    role: UserRole;
+  } | null>(() => {
+    const stored = localStorage.getItem('red-scale-auth');
+
+    if (!stored) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(stored);
+    } catch {
+      localStorage.removeItem('red-scale-auth');
+      return null;
+    }
+  });
+
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [fileName, setFileName] = useState('');
 
@@ -85,11 +106,57 @@ export default function App() {
     setFileName('');
   }
 
+  function handleLogin(username: string, role: UserRole) {
+    const session = {
+      username,
+      role,
+    };
+
+    localStorage.setItem(
+      'red-scale-auth',
+      JSON.stringify(session),
+    );
+
+    setAuth(session);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('red-scale-auth');
+    setAuth(null);
+    setAssessment(null);
+    setFileName('');
+  }
+
+  if (!auth) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  if (auth.role === 'trainee') {
+    return (
+      <div className="flex min-h-full flex-col bg-[#0c0c0c]">
+        <Header
+          onNewAssessment={handleNewAssessment}
+          hasAssessment={false}
+          username={auth.username}
+          role={auth.role}
+          onLogout={handleLogout}
+        />
+
+        <TraineeDashboard username={auth.username} />
+
+        <ChatAssistant />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-full flex-col bg-[#0c0c0c]">
       <Header
         onNewAssessment={handleNewAssessment}
         hasAssessment={assessment !== null}
+        username={auth.username}
+        role={auth.role}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1">
