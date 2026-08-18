@@ -1,95 +1,313 @@
-# Formula Chat
+# Red Scale
 
-## Description
+## AI Pilot Debrief & Assessment System
 
-An AI-powered Formula One chatbot that can answer questions about the sport's history, regulations, and session data. The system uses an agentic architecture built on the OpenAI Agents SDK, with tools for structured data querying, session telemetry retrieval, and a pgvector-based RAG pipeline for unstructured knowledge search.
+Red Scale is an AI-assisted pilot assessment and mission debriefing system that transforms flight recorder data into structured performance assessments, operational risk indicators, and natural-language debriefs.
 
-![Formula Chat home screen](resources/home.png)
+The system is designed around a simple principle:
 
-## Project Vision
+> **Deterministic assessment first. AI interpretation second.**
 
-The end goal is an AI-powered Formula One chatbot capable of answering the full spectrum of F1 questions — from all-time championship records and career statistics, to session-specific telemetry from a particular qualifying lap, to rich narrative questions about team history or regulation changes. The system will use an agentic architecture that autonomously decides how to retrieve and combine data from multiple sources, rather than relying on hand-crafted logic for each question type.
-
-The agent will eventually have access to three distinct tools:
-
-- A **structured data tool** for querying historical race results, standings, and statistics
-- A **session data tool** for telemetry, lap times, and tyre strategy from specific race weekends (not yet implemented)
-- A **knowledge search tool** for driver profiles, team history, regulations, and race narratives
-
-This design means the agent can handle questions that require combining statistics with context — answering not just "who won" but "why it mattered."
+Flight telemetry is parsed into measurable flight characteristics, evaluated against explicit assessment rules, converted into a deterministic risk assessment, and then presented through an AI-assisted debrief interface.
 
 ---
 
-## What's Implemented
+## Overview
 
-The current release includes two of the three tools described above:
+Red Scale provides a structured workflow for analysing flight performance:
 
-- **Structured data tool (`sql_query`)** — the agent queries a PostgreSQL database populated with F1 data from 2018 through the current season, imported via FastF1. It can answer questions about race results, championship standings, qualifying times, pit stops, lap data, and driver/constructor statistics.
-- **Knowledge search tool (`f1_knowledge`)** — semantic search over a curated pgvector knowledge base covering driver profiles, team histories, circuit guides, and FIA regulations.
+```text
+Flight Data Recorder CSV
+          ↓
+       Parser
+          ↓
+   Feature Extraction
+          ↓
+   Deterministic Rules
+          ↓
+     Risk Assessment
+          ↓
+      AI Debrief
+```
 
----
+The deterministic assessment engine remains authoritative for the actual assessment result.
 
-## What's Included
-
-### Knowledge Base & RAG Pipeline
-
-An offline ingestion pipeline scrapes and indexes F1 content from multiple sources into a pgvector database. The pipeline runs in four stages:
-
-1. **Scrape** — Playwright-based scraper extracts clean text from Wikipedia articles, FIA regulation PDFs, and HTML news pages. Boilerplate (navigation bars, infoboxes, references) is stripped before storage. (list of sources defined in the `scripts/ingest/sources.json` file)
-2. **Chunk** — Content is split into overlapping ~400-token chunks using tiktoken, respecting paragraph and sentence boundaries to preserve semantic coherence.
-3. **Embed** — Each chunk is embedded using OpenAI's `text-embedding-3-small` model, processed in batches of 100 with exponential backoff retry logic.
-4. **Load** — Embeddings are upserted into PostgreSQL with the pgvector extension. Idempotent logic (source + content hash) means re-running the pipeline replaces stale chunks without creating duplicates.
-
-The knowledge base currently covers 40+ sources across four categories: driver profiles, team histories, circuit guides, and FIA regulations. Each source is tagged with a refresh cadence (quarterly for historical material, monthly for regulations), which can be used to filter a targeted re-ingest run rather than re-processing all sources at once. Refresh runs are triggered manually at this stage — automation will be added in a future iteration.
-
-### Structured Data Tool (`sql_query`)
-
-The agent can query a PostgreSQL database containing F1 race data from 2018 through the current season, imported via [FastF1](https://docs.fastf1.dev/). The database schema covers:
-
-- **Race results** — finishing positions, points, fastest laps, and status
-- **Qualifying** — Q1/Q2/Q3 times and grid positions
-- **Championship standings** — cumulative driver and constructor standings after each round
-- **Lap times & pit stops** — per-lap positions and pit stop durations
-- **Reference data** — drivers, constructors, circuits, and seasons
-
-The agent writes its own SQL queries at runtime based on the schema provided in its system prompt. All queries are validated (SELECT-only, parsed with `sqlglot`) and executed with a timeout against a read-only database user.
-
-### Agent & API
-
-A FastAPI backend hosts the agent built on the OpenAI Agents SDK. The agent has two tools available — `sql_query` for structured race data and `f1_knowledge` for semantic search — and autonomously decides which tool (or combination of tools) to use for each question.
-
-The API exposes two endpoints:
-
-- `POST /api/v1/chat` — standard request/response
-- `POST /api/v1/chat/stream` — Server-Sent Events for real-time token-by-token streaming
-
-Rate limiting and CORS are applied at the middleware layer. The database runs with a read-only user. All secrets are managed via environment variables.
-
-> NOTE: This MVP does not include authentication or authorization yet. Do not deploy it publicly until access controls are in place (for example: API keys or OAuth), along with HTTPS and abuse protections.
-
-### Frontend
-
-A React + TypeScript chat interface (Vite + Tailwind CSS) connects to the streaming endpoint. It displays messages in real time, shows a typing indicator while the agent is working, surfaces which tool is being invoked, and includes a welcome screen with suggested questions to help users get started.
-
-### Infrastructure
-
-The API and PostgreSQL (pgvector) are containerised with Docker Compose, with healthchecks on each service.
+The AI assistant is used to explain aviation concepts, interpret available assessment information, and support the debriefing process. It does not determine or override the underlying assessment result.
 
 ---
 
-## Tech Stack (MVP)
+## Current MVP
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.12 |
-| Agent framework | OpenAI Agents SDK |
-| Backend | FastAPI |
-| Database | PostgreSQL + pgvector |
-| Web scraping | Playwright |
-| PDF parsing | pdfplumber |
-| Tokenisation | tiktoken |
-| Deployment | Docker Compose |
-| Frontend | React + TypeScript + Tailwind CSS |
+The current MVP supports:
+
+* Flight Data Recorder CSV ingestion
+* Flight telemetry parsing
+* Flight performance feature extraction
+* Deterministic rule evaluation
+* SOP-oriented flight assessment
+* Risk scoring
+* Overall flight rating
+* Rule violation detection
+* AI-assisted mission debriefing
+* Aviation-focused conversational assistance
+* Streaming AI responses through Server-Sent Events
+
+The system currently focuses on the assessment of measurable flight behaviour from uploaded flight data.
+
+---
+
+## Assessment Pipeline
+
+### 1. Flight Data
+
+The user uploads a Flight Data Recorder (FDR) CSV containing flight telemetry.
+
+The uploaded data forms the evidence base for the assessment.
+
+---
+
+### 2. Data Parsing
+
+The backend parses the uploaded flight data and converts the raw telemetry into a structured representation suitable for analysis.
+
+---
+
+### 3. Feature Extraction
+
+Red Scale derives flight-performance characteristics from the telemetry.
+
+Current assessment features include parameters such as:
+
+* Flight duration
+* Maximum altitude
+* Minimum altitude
+* Maximum airspeed
+* Maximum bank angle
+* Maximum pitch
+* Minimum pitch
+* Maximum climb rate
+* Maximum descent rate
+
+These features provide the measurable basis for the subsequent rule evaluation.
+
+---
+
+### 4. Deterministic Rule Evaluation
+
+The extracted features are evaluated against configured assessment thresholds.
+
+Current rules include checks for:
+
+| Assessment Area | Rule                   |
+| --------------- | ---------------------- |
+| Bank angle      | Excessive bank angle   |
+| Pitch           | Excessive pitch-up     |
+| Pitch           | Excessive pitch-down   |
+| Climb           | Excessive climb rate   |
+| Descent         | Excessive descent rate |
+| Airspeed        | High airspeed          |
+
+The rule engine produces explicit violations containing information such as:
+
+* Rule ID
+* Rule name
+* Severity
+* Explanation
+* Expected value
+* Actual value
+
+This layer is deterministic and does not depend on an LLM.
+
+---
+
+## Risk Assessment
+
+Detected rule violations are converted into an overall risk assessment.
+
+The assessment engine produces:
+
+* Overall rating
+* Risk score
+* Risk level
+* Number of detected violations
+* Individual rule violations
+* Extracted flight characteristics
+
+The AI assistant does not modify these values.
+
+The deterministic assessment engine is the source of truth for the assessment.
+
+---
+
+## AI Debrief
+
+Once an assessment has been generated, Red Scale provides an AI-assisted interface for interpreting the results.
+
+The AI layer can explain:
+
+* Flight assessment concepts
+* Telemetry parameters
+* Altitude
+* Airspeed
+* Pitch
+* Roll
+* Bank angle
+* Climb and descent rates
+* SOP concepts
+* Pilot training concepts
+* Mission debrief concepts
+* Risk assessment concepts
+* General aviation operations
+* Aircraft and aviation systems
+
+When discussing a specific flight, the assistant is instructed to use only the assessment information available in the conversation.
+
+It must not invent:
+
+* Flight data
+* SOP violations
+* Aircraft specifications
+* Pilot identity
+* Aircraft type
+* Mission circumstances
+* Weather conditions
+* Operational events
+
+The AI layer is therefore an **explanation and debriefing interface**, not the assessment authority.
+
+---
+
+## Aviation-Only Assistant
+
+The Red Scale side assistant is intentionally scoped to aviation and flight-related topics.
+
+It is designed to assist with questions involving areas such as:
+
+* Aviation
+* Aircraft
+* Flight operations
+* Piloting
+* Flight assessment
+* Flight telemetry
+* Pilot training
+* Aircraft systems
+* Aviation safety
+* Flight procedures
+* SOPs
+* Navigation
+* Air traffic control
+* Mission planning
+* Mission debriefing
+* Operational risk
+
+Unrelated general-purpose questions are outside the scope of the assistant.
+
+---
+
+## Architecture
+
+Red Scale consists of three primary layers.
+
+### Deterministic Assessment Engine
+
+Responsible for:
+
+* Parsing flight data
+* Extracting features
+* Applying assessment rules
+* Detecting violations
+* Calculating risk
+* Producing the final assessment
+
+This layer does not rely on generative AI.
+
+### AI Debrief Layer
+
+A Groq-powered conversational assistant provides natural-language explanations and debrief support.
+
+The assistant receives the available assessment context and explains it without modifying the underlying result.
+
+### Web Interface
+
+The frontend provides a pilot assessment console where users can:
+
+1. Upload flight data
+2. Run the assessment
+3. Review extracted flight characteristics
+4. Review detected violations
+5. Review risk and overall rating
+6. Interact with the Red Scale Assistant
+
+---
+
+## Tech Stack
+
+| Layer                      | Technology                |
+| -------------------------- | ------------------------- |
+| Language                   | Python 3.12               |
+| Backend                    | FastAPI                   |
+| AI                         | Groq                      |
+| Frontend                   | React + TypeScript        |
+| Build Tool                 | Vite                      |
+| Styling                    | Tailwind CSS              |
+| Data Processing            | Pandas                    |
+| Numerical Computing        | NumPy                     |
+| Machine Learning Utilities | Scikit-learn              |
+| Validation                 | Pydantic                  |
+| Rate Limiting              | SlowAPI                   |
+| API Communication          | HTTP / Server-Sent Events |
+| Containerisation           | Docker                    |
+
+---
+
+## Project Structure
+
+```text
+red-scale-pilot-assessment/
+│
+├── api/
+│   ├── app/
+│   │   ├── core/
+│   │   │   ├── ml.py
+│   │   │   └── rules.py
+│   │   │
+│   │   ├── models/
+│   │   │   ├── assessment.py
+│   │   │   ├── flight_features.py
+│   │   │   └── rule_violation.py
+│   │   │
+│   │   ├── routers/
+│   │   │   ├── assessment.py
+│   │   │   ├── debrief.py
+│   │   │   └── chat.py
+│   │   │
+│   │   ├── services/
+│   │   │   ├── assessment_service.py
+│   │   │   └── debrief_service.py
+│   │   │
+│   │   ├── agent.py
+│   │   ├── config.py
+│   │   └── main.py
+│   │
+│   ├── tests/
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       ├── hooks/
+│       ├── api/
+│       ├── App.tsx
+│       ├── types.ts
+│       └── main.tsx
+│
+├── resources/
+├── scripts/
+├── nginx/
+├── docker-compose.yml
+└── README.md
+```
 
 ---
 
@@ -97,218 +315,296 @@ The API and PostgreSQL (pgvector) are containerised with Docker Compose, with he
 
 ### Prerequisites
 
-- [Docker](https://www.docker.com/) and Docker Compose
-- [Python 3.12](https://www.python.org/) (for the ingest pipeline)
-- [Node.js](https://nodejs.org/) 18+ (for the frontend)
-- An [OpenAI API key](https://platform.openai.com/)
+Install:
+
+* Python 3.12
+* Node.js
+* npm
+* Docker Desktop (if using the containerised setup)
 
 ---
 
-### 1. Configure the API
+## 1. Clone the Repository
 
-Copy the example environment file and fill in your values:
+```bash
+git clone https://github.com/blackbird-e1/red-scale-pilot-assessment.git
+
+cd red-scale-pilot-assessment
+```
+
+---
+
+## 2. Configure the API
+
+Move into the API directory:
 
 ```bash
 cd api
+```
+
+Create the environment file:
+
+```bash
 cp .env.example .env
 ```
 
-At minimum, set:
+Configure the required Groq credentials:
 
 ```env
-OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql://f1_user:your_password@postgres:5433/f1
-POSTGRES_PASSWORD=your_password
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=openai/gpt-oss-120b
 ```
 
-The `DATABASE_URL` should use the Docker Compose service name as the host when running inside the stack:
-
-```env
-DATABASE_URL=postgresql://f1_user:your_password@postgres:5433/f1
-```
+Additional configuration options are available in the example environment file.
 
 ---
 
-### 2. Start the stack
+## 3. Install Backend Dependencies
+
+Create a virtual environment:
 
 ```bash
-cd api
-docker compose up --build
+python -m venv .venv
 ```
 
-This starts the API (port `8000`) and PostgreSQL with the pgvector extension. Both services must pass their healthchecks before the API accepts traffic.
+Activate it.
 
----
+### Windows
 
-### 3. Initialise the database
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-With the Postgres container running, apply the schema and create the database users (run from the `api/` directory):
+### Linux / macOS
 
 ```bash
-docker compose exec -T postgres psql -U f1_user -d f1 -f /dev/stdin < ../scripts/db/schema.sql
-docker compose exec -T postgres psql -U f1_user -d f1 -f /dev/stdin < ../scripts/db/users.sql
+source .venv/bin/activate
 ```
 
-Then apply the vector index for the knowledge base (skip the other indexes for now — they will be applied after the F1 data import in the next step):
+Install dependencies:
 
 ```bash
-docker compose exec postgres psql -U f1_user -d f1 -c "
-CREATE INDEX IF NOT EXISTS idx_knowledge_embedding
-    ON f1_knowledge USING hnsw (embedding vector_cosine_ops)
-    WITH (m = 16, ef_construction = 64);
-CREATE INDEX IF NOT EXISTS idx_knowledge_category ON f1_knowledge(category);
-CREATE INDEX IF NOT EXISTS idx_knowledge_source ON f1_knowledge(source);
-"
-```
-
----
-
-### 4. Import the F1 structured data
-
-The `build_db.py` script downloads F1 race and qualifying session data via [FastF1](https://docs.fastf1.dev/) and imports it into PostgreSQL. It covers 2018 through the current season and is safe to re-run (all inserts are idempotent).
-
-Make sure the scripts virtual environment is set up first (see step 5 below for full setup), then run from the repo root:
-
-```bash
-cd scripts
-source venv/bin/activate
-```
-
-```
-# Apply the structured data indexes
-docker compose exec -T postgres psql -U f1_user -d f1 -f /dev/stdin < ../scripts/db/indexes.sql
-
-# Import all seasons from 2021 to current year (default)
-python build_db.py
-
-# Import a single season
-python build_db.py --season 2024
-
-# Import a specific range of seasons
-python build_db.py --from-season 2022 --to-season 2024
-```
-
-> **Rate limits:** FastF1 fetches data from the official F1 timing API, and you will very likely hit rate limits during a full import. The script uses exponential backoff and will retry automatically, but if it fails persistently, it will print the exact command to resume from where it left off — for example:
->
-> ```
-> python build_db.py --from-season 2023 --from-round 5
-> ```
->
-> Use `--from-season` (and optionally `--from-round`) to continue the import without re-processing seasons you've already completed. Setting a longer `ROUND_DELAY` (seconds between rounds) in your `.env` can also reduce the likelihood of hitting rate limits:
->
-> ```env
-> ROUND_DELAY=30
-> SESSION_DELAY=10
-> ```
-
----
-
-### 5. Run the ingest pipeline
-
-The ingest pipeline runs locally and writes to the Dockerised Postgres instance. Install dependencies and run:
-
-```bash
-cd scripts
-python3.12 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
-playwright install chromium
-
-# Copy the example environment file and set your OpenAI API key and database URL
-cp .env.example .env
-
-#Update the DATABASE_URL in .env to point to the Dockerised Postgres instance:
-
-OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql://f1_user:your_password@localhost:5433/f1
-
-# Ingest all sources
-python ingest/run_ingest.py
-
-# Or ingest a single category
-python ingest/run_ingest.py --category driver
-python ingest/run_ingest.py --category regulation
-
-# Dry run — scrape and chunk only, no DB writes
-python ingest/run_ingest.py --dry-run
-```
-
-> This will scrape 40+ sources, generate embeddings via the OpenAI API, and load them into pgvector. Expect it to take several minutes and incur a small API cost.
-
----
-
-### 6. Verify the API
-
-```bash
-curl http://localhost:8000/health
-```
-
-Then send a test message:
-
-```bash
-curl -X POST http://localhost:8000/api/v1/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Who is Lewis Hamilton?", "history": []}'
 ```
 
 ---
 
-### 7. Start the frontend
+## 4. Start the API
+
+From the `api` directory:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The API will run on:
+
+```text
+http://localhost:8000
+```
+
+During development, API documentation is available at:
+
+```text
+http://localhost:8000/docs
+```
+
+---
+
+## 5. Start the Frontend
+
+Open another terminal and move into the frontend:
 
 ```bash
 cd frontend
+```
+
+Install dependencies:
+
+```bash
 npm install
+```
+
+Start the development server:
+
+```bash
 npm run dev
 ```
 
-The chat interface will be available at `http://localhost:5173`.
+The frontend will normally be available at:
 
----
-
-### Refreshing the knowledge base
-
-Each source in `sources.json` is tagged with a refresh cadence. To re-ingest only sources due for an update, use the `--refresh` flag:
-
-```bash
-python ingest/run_ingest.py --refresh monthly     # regulations
-python ingest/run_ingest.py --refresh quarterly   # driver/team/circuit articles
-```
-
-The pipeline is idempotent — re-running it will replace stale chunks without creating duplicates.
-
-You can add additional source URLs to `sources.json` as needed, following the existing structure. New sources will be picked up on the next ingest run. Make sure to include the object inside of the array.
-
-```bash
-{
-  "url": "https://en.wikipedia.org/wiki/New_F1_Source",
-  "category": "driver",
-  "title": "New F1 Source",
-  "refresh": "quarterly"
-}
+```text
+http://localhost:5173
 ```
 
 ---
 
-## What's Coming Next
+## API
 
-The agentic architecture is designed to support additional tools. The structured data tool and knowledge search tool are now live. The remaining tool to be added is:
+The backend exposes endpoints for flight assessment, debriefing, health checks, and conversational assistance.
 
-- **Session telemetry** — lap times, tyre strategy, sector splits, and weather data from specific race weekends
+### Health
 
-This will be added as a third tool that the agent can invoke alongside the existing tools, enabling it to answer the full range of questions the project ultimately targets.
+```http
+GET /health
+```
+
+### Flight Assessment
+
+```http
+POST /api/v1/assessment
+```
+
+Used to submit flight data and generate an assessment.
+
+### Debrief
+
+```http
+POST /api/v1/debrief
+```
+
+Used to generate an AI-assisted interpretation of an assessment.
+
+### Chat
+
+```http
+POST /api/v1/chat
+```
+
+Used for non-streaming aviation assistant responses.
+
+### Streaming Chat
+
+```http
+POST /api/v1/chat/stream
+```
+
+Provides Server-Sent Events for real-time assistant responses.
 
 ---
 
-## 📝 License
+## Example Assessment Flow
+
+A typical assessment follows this sequence:
+
+```text
+Upload FDR CSV
+      ↓
+Parse telemetry
+      ↓
+Extract flight features
+      ↓
+Evaluate deterministic rules
+      ↓
+Detect violations
+      ↓
+Calculate risk
+      ↓
+Generate assessment
+      ↓
+Explain through AI debrief
+```
+
+For example, if the extracted telemetry contains a maximum bank angle above the configured threshold, the deterministic rule engine can produce an excessive-bank-angle violation.
+
+The AI assistant can then explain what excessive bank angle means operationally without changing the underlying violation.
+
+---
+
+## Design Principles
+
+### Deterministic First
+
+Safety-relevant assessment decisions should be reproducible and traceable.
+
+The assessment engine therefore uses explicit rules rather than asking an LLM to decide whether a flight violated an assessment threshold.
+
+### Evidence Before Interpretation
+
+The system derives assessment findings from the uploaded flight data.
+
+The AI layer interprets the resulting evidence rather than creating evidence.
+
+### AI as an Assistant
+
+The AI component is intended to improve the usability of assessment results through explanation and debriefing.
+
+It does not replace:
+
+* Qualified aviation personnel
+* Aircraft operating manuals
+* Official SOPs
+* Training procedures
+* Regulatory requirements
+* Operational decision-making
+
+### Separation of Responsibilities
+
+The system separates:
+
+```text
+Telemetry
+   ↓
+Deterministic Assessment
+   ↓
+Assessment Result
+   ↓
+AI Interpretation
+```
+
+This separation makes the assessment pipeline easier to inspect, test, and improve independently of the language model.
+
+---
+
+## Current Limitations
+
+The current MVP is intentionally limited.
+
+Current limitations include:
+
+* Authentication and authorization are not yet implemented.
+* Assessment rules are currently configured as deterministic thresholds.
+* The system currently accepts FDR CSV data as its primary input.
+* Mission logs and additional operational data sources are planned but not yet active.
+* The AI assistant is explanatory and does not independently validate real-world operational conditions.
+* The system should not be treated as an operational flight-safety system without appropriate validation, certification, and integration with approved aviation procedures.
+
+Do not deploy the system publicly until appropriate access controls and production security measures are in place.
+
+---
+
+## Roadmap
+
+Planned development areas include:
+
+* Authentication and authorization
+* Pilot and instructor accounts
+* Assessment history
+* Persistent flight records
+* Mission and training profiles
+* Configurable SOP/rule sets
+* Additional flight-data formats
+* Richer telemetry visualisation
+* Comparative pilot performance analysis
+* Training progression tracking
+* Instructor review workflows
+* Expanded mission intelligence
+* Production deployment and security hardening
+
+---
+
+## Disclaimer
+
+Red Scale is an experimental AI-assisted flight assessment and debriefing system.
+
+It is intended for research, development, demonstration, and training-oriented use.
+
+It is **not** a certified aviation safety system and should not be used as a substitute for qualified aviation personnel, approved aircraft documentation, official SOPs, regulatory requirements, or operational decision-making.
+
+Assessment results are generated from the configured rules and the supplied flight data and should be independently reviewed before being used for any real-world training or operational purpose.
+
+---
+
+## License
 
 This project is licensed under the MIT License.
-
----
-
-## ⚠️ Disclaimer
-
-No copyright infringement intended. Formula 1 and related trademarks are the property of their respective owners. All data used is sourced from publicly available APIs and is used for educational and non-commercial purposes only.
-
----
-
-Built with ❤️ by [Tom Shaw](https://tomshaw.dev)
