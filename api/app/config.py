@@ -1,6 +1,5 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-import json
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -10,35 +9,72 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # OpenAI
-    openai_api_key: str = Field(..., alias="OPENAI_API_KEY")
-    openai_model: str = Field("gpt-4o", alias="OPENAI_MODEL")
+    # Groq
+    groq_api_key: str = Field(..., alias="GROQ_API_KEY")
+    groq_model: str = Field(
+        "openai/gpt-oss-120b",
+        alias="GROQ_MODEL",
+    )
 
     # PostgreSQL
-    database_url: str = Field(..., alias="DATABASE_URL")
-    database_query_timeout: int = Field(5, alias="DATABASE_QUERY_TIMEOUT")
+    # Not required for the MVP yet.
+    database_url: str | None = Field(
+        default=None,
+        alias="DATABASE_URL",
+    )
+    database_query_timeout: int = Field(
+        5,
+        alias="DATABASE_QUERY_TIMEOUT",
+    )
 
-    # pgvector RAG
-    embedding_model: str = Field("text-embedding-3-small", alias="EMBEDDING_MODEL")
-    rag_top_k: int = Field(5, alias="RAG_TOP_K")
+    # pgvector / RAG
+    # Not used in Phase 1.
+    embedding_model: str = Field(
+        "text-embedding-3-small",
+        alias="EMBEDDING_MODEL",
+    )
+    rag_top_k: int = Field(
+        5,
+        alias="RAG_TOP_K",
+    )
 
     # Redis
-    redis_url: str = Field("redis://localhost:6379/0", alias="REDIS_URL")
+    # Not used in the MVP initially.
+    redis_url: str = Field(
+        "redis://localhost:6379/0",
+        alias="REDIS_URL",
+    )
 
     # FastF1
-    fastf1_cache_dir: str = Field(".fastf1_cache", alias="FASTF1_CACHE_DIR")
+    # Keep for now, but it is not part of the flight assessment MVP.
+    fastf1_cache_dir: str = Field(
+        ".fastf1_cache",
+        alias="FASTF1_CACHE_DIR",
+    )
 
     # API
-    api_host: str = Field("0.0.0.0", alias="API_HOST")
-    api_port: int = Field(8000, alias="API_PORT")
+    api_host: str = Field(
+        "0.0.0.0",
+        alias="API_HOST",
+    )
+    api_port: int = Field(
+        8000,
+        alias="API_PORT",
+    )
     api_cors_origins: list[str] = Field(
         default=["http://localhost:5173"],
         alias="API_CORS_ORIGINS",
     )
-    rate_limit_per_minute: int = Field(20, alias="RATE_LIMIT_PER_MINUTE")
+    rate_limit_per_minute: int = Field(
+        20,
+        alias="RATE_LIMIT_PER_MINUTE",
+    )
 
     # Environment
-    env: str = Field("development", alias="ENV")
+    env: str = Field(
+        "development",
+        alias="ENV",
+    )
 
     @property
     def is_production(self) -> bool:

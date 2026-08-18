@@ -1,163 +1,184 @@
 """
-F1 agent — built with the OpenAI Agents SDK.
+Red Scale conversational assistant.
 
-The agent is given:
-  - A system prompt containing the full database schema and tool descriptions
-  - Two tools: sql_query, f1_knowledge
-  - Autonomy to choose which tool(s) to call, in what order, and how to
-    combine results before producing a final natural-language answer.
+The assistant uses Groq for general aviation and
+flight-assessment related questions.
+
+Critical flight assessment decisions are NOT made here.
+Those remain the responsibility of the deterministic
+assessment engine and the debrief service.
 """
 
-from agents import Agent, Runner, function_tool, RunConfig, RawResponsesStreamEvent, RunItemStreamEvent
-from agents.models.openai_responses import OpenAIResponsesModel
+from typing import AsyncGenerator
+
+from groq import AsyncGroq
 
 from app.config import settings
-from app.tools.sql_query import sql_query, SCHEMA_DESCRIPTION
-from app.tools.f1_knowledge import aviation_knowledge
 
-# ---------------------------------------------------------------------------
-# System prompt
-# ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = f"""
-You are Red Scale, an AI Pilot Debrief & Assessment System.
+SYSTEM_PROMPT = """
+You are Red Scale, an AI Pilot Debrief & Assessment Assistant.
 
-You assist instructors, analysts and pilots by evaluating flight missions.
+You assist pilots, instructors, analysts, and users of the Red Scale
+flight assessment system.
 
-You have access to two tools.
+Your role is to explain aviation and flight-assessment concepts clearly
+and professionally.
 
-1. aviation_knowledge
-Searches manuals, SOPs, emergency procedures and training documents.
+You may discuss:
 
-2. sql_query
-Queries mission records, pilot assessments and flight logs.
+- Flight assessment concepts
+- Flight telemetry
+- Altitude
+- Airspeed
+- Pitch
+- Roll
+- Bank angle
+- Climb rate
+- Descent rate
+- Throttle
+- SOP compliance
+- Pilot training concepts
+- Mission debrief concepts
+- Risk assessment concepts
+- General aviation operations
 
-Responsibilities:
+IMPORTANT RULES:
 
-• Analyze flight missions
-• Compare pilot actions with SOP
-• Detect policy violations
-• Produce structured mission debriefs
-• Recommend training
+1. Do not invent flight data.
+2. Do not invent SOP violations.
+3. Do not invent aircraft specifications.
+4. Do not claim that a parameter violated an SOP unless the supplied
+   assessment explicitly establishes that violation.
+5. The deterministic Red Scale assessment engine is authoritative for:
+   risk score, overall rating, features, and violations.
+6. Never modify or override an assessment result.
+7. If the user asks about a specific flight but no flight assessment
+   data has been provided in the conversation, clearly say that you
+   do not have that flight data.
+8. Do not invent aircraft type, pilot identity, mission type,
+   weather, or operational circumstances.
+9. Keep answers concise, professional, and useful.
+10. This assistant is an explanatory interface, not a replacement
+    for qualified aviation personnel, official SOPs, manuals, or
+    operational procedures.
 
-Never fabricate results.
+If the user asks a general aviation question, answer directly.
 
-If knowledge is unavailable, clearly state it.
+If the user asks about an assessment result, use only the assessment
+information available in the conversation.
 
-Prefer aviation_knowledge for manuals.
-
-Prefer sql_query for structured mission records.
-
-When useful, combine both tools.
-
-## Database Schema
-
-{SCHEMA_DESCRIPTION}
+Never fabricate evidence.
 """.strip()
 
 
-# ---------------------------------------------------------------------------
-# Tool registration
-# ---------------------------------------------------------------------------
+def _build_messages(
+    message: str,
+    history: list[dict] | None = None,
+) -> list[dict[str, str]]:
+    """
+    Build the Groq chat message list.
+    """
 
-_sql_tool = function_tool(sql_query)
-_knowledge_tool = function_tool(aviation_knowledge)
+    messages: list[dict[str, str]] = [
+        {
+            "role": "system",
+            "content": SYSTEM_PROMPT,
+        }
+    ]
+
+    if history:
+        for turn in history:
+            messages.append(
+                {
+                    "role": turn["role"],
+                    "content": turn["content"],
+                }
+            )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": message,
+        }
+    )
+
+    return messages
 
 
-# ---------------------------------------------------------------------------
-# Agent factory
-# ---------------------------------------------------------------------------
+def _client() -> AsyncGroq:
+    """
+    Create the Groq client.
+    """
 
-def create_agent() -> Agent:
-    """Return a configured Red Scale agent."""
-    return Agent(
-        name="Red Scale",
-        instructions=SYSTEM_PROMPT,
-        model=OpenAIResponsesModel(
-            model=settings.openai_model,
-            openai_client=_openai_client(),
-        ),
-        tools=[_sql_tool, _knowledge_tool],
+    return AsyncGroq(
+        api_key=settings.groq_api_key,
     )
 
 
-def _openai_client():
-    from openai import AsyncOpenAI
-    return AsyncOpenAI(api_key=settings.openai_api_key)
-
-
-# ---------------------------------------------------------------------------
-# Runner helpers
-# ---------------------------------------------------------------------------
-
-async def run_agent(message: str, history: list[dict] | None = None) -> str:
+async def run_agent(
+    message: str,
+    history: list[dict] | None = None,
+) -> str:
     """
-    Run the agent for a single turn and return the final text response.
-
-    Args:
-        message: The user's current message.
-        history: Optional list of prior turns as {"role": ..., "content": ...} dicts.
-
-    Returns:
-        The agent's final answer as a plain string.
+    Generate a complete assistant response.
     """
-    agent = create_agent()
-    input_messages = _build_input(message, history)
 
-    result = await Runner.run(
-        agent,
-        input=input_messages,
-        run_config=RunConfig(tracing_disabled=not settings.is_production),
+    client = _client()
+
+    response = await client.chat.completions.create(
+        model=settings.groq_model,
+        messages=_build_messages(message, history),
+        temperature=0.2,
     )
-    return str(result.final_output)
+
+    content = response.choices[0].message.content
+
+    if not content:
+        raise RuntimeError(
+            "Groq returned an empty response."
+        )
+
+    return content
 
 
-async def stream_agent(message: str, history: list[dict] | None = None):
+async def stream_agent(
+    message: str,
+    history: list[dict] | None = None,
+) -> AsyncGenerator[tuple[str, str], None]:
     """
-    Stream the agent's response token-by-token.
+    Stream the assistant response.
 
     Yields:
-        Tuples of (event_type, payload) where event_type is one of:
-          - "delta": a text token chunk (payload is str)
-          - "tool_call": a tool was invoked (payload is tool name str)
-          - "done": stream complete (payload is final full text str)
-    """
-    agent = create_agent()
-    input_messages = _build_input(message, history)
 
-    # run_streamed returns RunResultStreaming directly (not a context manager)
-    stream = Runner.run_streamed(
-        agent,
-        input=input_messages,
-        run_config=RunConfig(tracing_disabled=not settings.is_production),
+        ("delta", text)
+        ("done", full_response)
+
+    The chat router can continue using the existing SSE format.
+    """
+
+    client = _client()
+
+    stream = await client.chat.completions.create(
+        model=settings.groq_model,
+        messages=_build_messages(message, history),
+        temperature=0.2,
+        stream=True,
     )
 
-    async for event in stream.stream_events():
-        if isinstance(event, RawResponsesStreamEvent):
-            inner_type = getattr(event.data, "type", None)
-            if inner_type == "response.output_text.delta":
-                delta = getattr(event.data, "delta", "")
-                if delta:
-                    yield ("delta", delta)
+    full_response = ""
 
-        elif isinstance(event, RunItemStreamEvent):
-            if event.name == "tool_called":
-                tool_name = getattr(event.item, "raw_item", None)
-                name = getattr(tool_name, "name", "unknown_tool") if tool_name else "unknown_tool"
-                yield ("tool_call", name)
+    async for chunk in stream:
+        if not chunk.choices:
+            continue
 
-    yield ("done", str(stream.final_output))
+        delta = chunk.choices[0].delta.content
 
+        if not delta:
+            continue
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+        full_response += delta
 
-def _build_input(message: str, history: list[dict] | None) -> list[dict] | str:
-    """Construct the input for the Runner from message + optional history."""
-    if not history:
-        return message
+        yield ("delta", delta)
 
-    turns = [{"role": t["role"], "content": t["content"]} for t in history]
-    turns.append({"role": "user", "content": message})
-    return turns
+    yield ("done", full_response)

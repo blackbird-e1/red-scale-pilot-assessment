@@ -46,7 +46,7 @@ export default function ChatInput({ onSend, isLoading }: ChatInputProps) {
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           disabled={isLoading}
-          placeholder="Ask anything about Formula One…"
+          placeholder="Ask Red Scale..."
           rows={1}
           className="flex-1 bg-transparent text-gray-200 placeholder-gray-600 text-sm resize-none outline-none leading-relaxed max-h-40 disabled:opacity-50"
         />

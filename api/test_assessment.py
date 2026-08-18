@@ -1,21 +1,24 @@
 from pathlib import Path
 
-from app.core.report import generate_report
 from app.services.assessment_service import assess_flight
 
 
-csv_path = Path("data/fdr_sample.csv")
+def test_assess_flight():
+    csv_path = Path("data/fdr_sample.csv")
 
-assessment = assess_flight(csv_path)
+    assessment = assess_flight(csv_path)
 
-report = generate_report(assessment)
+    assert assessment is not None
 
-print()
+    assert 0 <= assessment.risk_score <= 100
 
-print("=" * 70)
-print("FLIGHT ASSESSMENT")
-print("=" * 70)
+    assert assessment.overall_rating in {
+        "Excellent",
+        "Good",
+        "Fair",
+        "Poor",
+        "Unsafe",
+    }
 
-print()
-
-print(report)
+    assert assessment.features is not None
+    assert assessment.violations is not None

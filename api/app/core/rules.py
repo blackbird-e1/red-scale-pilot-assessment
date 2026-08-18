@@ -9,7 +9,7 @@ MAX_BANK_ANGLE_DEG = 45.0
 MAX_PITCH_UP_DEG = 20.0
 MAX_PITCH_DOWN_DEG = -15.0
 MAX_CLIMB_RATE_FPM = 2000.0
-MAX_DESCENT_RATE_FPM = -1500.0
+MAX_DESCENT_RATE_FPM = 1500.0
 MAX_SPEED_KNOTS = 250.0
 
 
@@ -70,7 +70,7 @@ def check_climb_rate(features: FlightFeatures):
 
 
 def check_descent_rate(features: FlightFeatures):
-    if features.max_descent_rate_fpm >= MAX_DESCENT_RATE_FPM:
+    if features.max_descent_rate_fpm <= MAX_DESCENT_RATE_FPM:
         return None
 
     return RuleViolation(
@@ -78,7 +78,7 @@ def check_descent_rate(features: FlightFeatures):
         rule_name="Excessive Descent Rate",
         severity="high",
         message="Descent rate exceeded limit.",
-        expected=f">= {MAX_DESCENT_RATE_FPM:.0f} fpm",
+        expected=f"<= {MAX_DESCENT_RATE_FPM:.0f} fpm",
         actual=f"{features.max_descent_rate_fpm:.0f} fpm",
     )
 

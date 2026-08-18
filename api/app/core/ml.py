@@ -20,7 +20,7 @@ def predict_risk(
     if features.max_climb_rate_fpm > 2000:
         score += 15
 
-    if features.max_descent_rate_fpm < -1500:
+    if features.max_descent_rate_fpm > 1500:
         score += 15
 
     return min(score, 100.0)
