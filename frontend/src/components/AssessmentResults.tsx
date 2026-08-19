@@ -143,7 +143,7 @@ export default function AssessmentResults({
 
         try {
             const response = await fetch(
-            'http://127.0.0.1:8000/api/v1/debrief',
+              '/api/v1/debrief',
             {
                 method: 'POST',
                 headers: {
@@ -190,6 +190,7 @@ export default function AssessmentResults({
   const {
     features,
     violations,
+    visual_observations,
     risk_score,
     overall_rating,
     telemetry,
@@ -431,6 +432,92 @@ export default function AssessmentResults({
 
       {/* Charts */}
       <FlightCharts telemetry={telemetry} />
+
+      {/* Visual evidence */}
+      <section className="mt-6">
+        <div className="mb-5">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#e10600]">
+            Visual Evidence
+          </p>
+
+          <h2 className="mt-2 text-lg font-semibold text-white">
+            Aviation image analysis
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-600">
+            Observations derived from the uploaded aviation image.
+          </p>
+        </div>
+
+        {visual_observations.length === 0 ? (
+          <div className="rounded-3xl border border-[#292929] bg-[#111111] p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#303030] bg-[#171717] text-gray-500">
+                —
+              </div>
+
+              <div>
+                <p className="text-base font-semibold text-gray-300">
+                  No visual observations
+                </p>
+
+                <p className="mt-1 text-sm text-gray-600">
+                  No meaningful aviation-related visual evidence was identified.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {visual_observations.map((observation, index) => (
+              <div
+                key={`${observation.category}-${index}`}
+                className="rounded-2xl border border-[#292929] bg-[#111111] p-5"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-white">
+                        {observation.category}
+                      </span>
+
+                      <span className="rounded-full border border-[#303030] bg-[#171717] px-2 py-1 text-[9px] uppercase tracking-[0.14em] text-gray-500">
+                        Visual Evidence
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-gray-400">
+                      {observation.finding}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-shrink-0 items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
+                        Confidence
+                      </p>
+
+                      <p className="mt-1 text-sm font-semibold text-white">
+                        {formatNumber(observation.confidence * 100, 0)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between border-t border-[#202020] pt-3">
+                  <span className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
+                    Source
+                  </span>
+
+                  <span className="max-w-[70%] truncate font-mono text-[10px] text-gray-600">
+                    {observation.source}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Rule violations */}
       <section className="mt-6">

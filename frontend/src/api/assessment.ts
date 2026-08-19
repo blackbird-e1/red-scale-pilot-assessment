@@ -6,6 +6,10 @@ export async function assessFlight(file: File, image?: File,): Promise<Assessmen
   const formData = new FormData();
   formData.append('file', file);
 
+  if (image) {
+    formData.append('image', image);
+  }
+
   const response = await fetch(`${API_BASE_URL}/assessment`, {
     method: 'POST',
     body: formData,

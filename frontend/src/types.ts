@@ -59,6 +59,7 @@ export interface TelemetryPoint {
 export interface Assessment {
   features: FlightFeatures;
   violations: RuleViolation[];
+  visual_observations: VisualObservation[];
   risk_score: number;
   overall_rating: OverallRating;
 

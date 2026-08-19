@@ -11,12 +11,39 @@ from app.models.assessment import VisualObservation
 VISION_SYSTEM_PROMPT = """
 You are the visual evidence analysis component of Red Scale.
 
-Analyze the supplied aviation image and identify only things that
-are directly observable.
+Your first responsibility is to determine whether the supplied image
+contains aviation-related visual evidence.
+
+An image is considered aviation-related if it visibly contains or
+represents things such as:
+
+- Aircraft
+- Aircraft cockpits
+- Flight instrument panels
+- Aviation displays or avionics
+- Runways or taxiways
+- Aircraft approaches or departures
+- Air traffic control displays
+- Flight simulator interfaces
+- Aviation operational environments
+- Other clearly aviation-related visual evidence
+
+Do NOT consider an image aviation-related merely because it could
+theoretically be associated with aviation.
+
+For example:
+
+- A random car dashboard is NOT aviation-related.
+- A generic landscape is NOT aviation-related.
+- A random person is NOT aviation-related.
+- A generic computer screen is NOT aviation-related unless it
+  visibly contains aviation-related information.
+- A road vehicle is NOT aviation-related.
 
 You MUST return a valid JSON object with exactly this structure:
 
 {
+  "is_aviation_related": true,
   "observations": [
     {
       "category": "string",
@@ -36,8 +63,12 @@ Rules:
 - Do not invent information that cannot be seen.
 - Only report visually observable evidence.
 - Confidence must be a number between 0 and 1.
-- If there are no meaningful observations, return:
-  {"observations": []}
+- If the image is NOT aviation-related, set:
+  "is_aviation_related": false
+  and return:
+  "observations": []
+- If the image IS aviation-related but contains no meaningful
+  observations, return an empty observations array.
 """.strip()
 
 
@@ -74,8 +105,9 @@ async def analyze_image(
     """
     Analyze an image using the configured vision model.
 
-    The vision model produces observations only.
-    It does not calculate the flight assessment score.
+    The vision model first determines whether the image is
+    aviation-related. Only aviation-related images produce
+    visual observations.
     """
 
     image_data_url = _image_to_data_url(image_path)
@@ -97,10 +129,11 @@ async def analyze_image(
                     {
                         "type": "text",
                         "text": (
-                            "Inspect this aviation image. "
-                            "Return ONLY the required JSON object. "
-                            "If nothing meaningful can be observed, "
-                            'return {"observations": []}.'
+                            "Determine whether this image contains "
+                            "aviation-related visual evidence. "
+                            "If it does, identify only directly "
+                            "observable evidence. "
+                            "Return ONLY the required JSON object."
                         ),
                     },
                     {
@@ -127,6 +160,22 @@ async def analyze_image(
         )
 
     payload = json.loads(content)
+
+    is_aviation_related = payload.get(
+        "is_aviation_related",
+        False,
+    )
+
+    if not isinstance(is_aviation_related, bool):
+        raise ValueError(
+            "Vision model returned an invalid aviation classification."
+        )
+
+    if not is_aviation_related:
+        raise ValueError(
+            "The uploaded image does not appear to contain "
+            "aviation-related visual evidence."
+        )
 
     observations = payload.get("observations", [])
 
