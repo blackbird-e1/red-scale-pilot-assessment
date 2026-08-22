@@ -11,9 +11,9 @@ Parser
     ↓
 Feature Extraction
     ↓
-Rule Evaluation
+Benchmark Engine
     ↓
-Risk Prediction
+Risk Score
     ↓
 Telemetry Sampling
     ↓
@@ -24,10 +24,13 @@ from pathlib import Path
 
 import pandas as pd
 
+from app.core.benchmark_adapter import (
+    benchmark_violations_from_result,
+    evaluate_benchmark,
+)
 from app.core.features import extract_features
 from app.core.ml import predict_risk
 from app.core.parser import parse_fdr
-from app.core.rules import evaluate_rules
 from app.models.assessment import (
     Assessment,
     TelemetryPoint,
@@ -125,18 +128,21 @@ def assess_flight(
     features = extract_features(df)
 
     # -------------------------------------------------------------
-    # Evaluate SOP Rules
+    # Benchmark Engine
     # -------------------------------------------------------------
 
-    violations = evaluate_rules(features)
+    benchmark_result = evaluate_benchmark(features)
+
+    violations = benchmark_violations_from_result(
+        benchmark_result
+    )
 
     # -------------------------------------------------------------
     # Predict Risk
     # -------------------------------------------------------------
 
     risk_score = predict_risk(
-        features=features,
-        violations=violations,
+        benchmark_score=benchmark_result.score,
     )
 
     # -------------------------------------------------------------

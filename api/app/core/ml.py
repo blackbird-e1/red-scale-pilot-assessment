@@ -1,26 +1,18 @@
-from app.models.flight_features import FlightFeatures
-from app.models.rule_violation import RuleViolation
+def predict_risk(benchmark_score: float) -> float:
+    """
+    Convert benchmark-engine performance into Red Scale risk.
 
+    benchmark_score:
+        0.0 = worst performance
+        1.0 = best performance
 
-def predict_risk(
-    features: FlightFeatures,
-    violations: list[RuleViolation],
-) -> float:
+    Red Scale risk:
+        0.0 = no risk
+        100.0 = maximum risk
+    """
 
-    score = 0.0
+    benchmark_score = max(0.0, min(1.0, benchmark_score))
 
-    score += len(violations) * 15
+    benchmark_risk = (1.0 - benchmark_score) * 100.0
 
-    if features.max_bank_angle_deg > 45:
-        score += 20
-
-    if features.max_speed_knots > 250:
-        score += 20
-
-    if features.max_climb_rate_fpm > 2000:
-        score += 15
-
-    if features.max_descent_rate_fpm > 1500:
-        score += 15
-
-    return min(score, 100.0)
+    return min(benchmark_risk, 100.0)
