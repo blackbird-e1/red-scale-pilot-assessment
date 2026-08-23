@@ -1,4 +1,54 @@
-"""Bridge between Red Scale and benchmark-engine."""
+"""
+Adapter between Red Scale flight features and benchmark-engine.
+
+ARCHITECTURE OWNERSHIP
+----------------------
+Red Scale is responsible for:
+
+    - FDR parsing
+    - feature extraction
+    - adapting flight features into benchmark-engine inputs
+    - adapting benchmark-engine results into Red Scale API models
+    - API/UI presentation
+
+benchmark-engine is responsible for:
+
+    - benchmark definitions
+    - benchmark rules
+    - benchmark thresholds
+    - benchmark evaluation
+    - benchmark scoring
+    - assessment logic
+
+IMPORTANT
+---------
+Do NOT add aviation thresholds, aviation rules, benchmark scoring,
+or assessment logic to Red Scale.
+
+If benchmark-engine does not yet support a required flight metric,
+use a temporary compatibility mapping rather than implementing
+the missing assessment logic in Red Scale.
+
+TEMPORARY COMPATIBILITY / MISMATCH NOTES
+-----------------------------------------
+The current benchmark-engine version does not yet expose every
+flight metric extracted by Red Scale.
+
+For the current MVP, only metrics currently supported by
+benchmark-engine are sent to the engine.
+
+Unsupported metrics such as pitch/climb-related metrics are
+intentionally not evaluated by Red Scale.
+
+When benchmark-engine adds support for additional metrics:
+
+    1. Update the adapter input mapping.
+    2. Let benchmark-engine define the corresponding rules.
+    3. Remove any temporary compatibility code.
+
+The adapter must remain a translation boundary. It must never
+become a second location for aviation assessment logic.
+"""
 
 from benchmark_engine import BenchmarkEngine, BenchmarkInput
 from benchmark_engine.adapters.aviation import AVIATION_RULES
@@ -8,7 +58,7 @@ from app.models.rule_violation import RuleViolation
 
 
 # benchmark-engine is the only benchmarking implementation.
-# Red Scale talks to it through this adapter.
+# Red Scale communicates with it through this adapter.
 _ENGINE = BenchmarkEngine(AVIATION_RULES)
 
 
@@ -16,8 +66,10 @@ def evaluate_benchmark(features: FlightFeatures):
     """
     Evaluate Red Scale flight features using benchmark-engine.
 
-    Only the metrics currently supported by benchmark-engine's
-    aviation adapter are sent to the engine.
+    Only metrics currently supported by benchmark-engine are
+    passed to the engine.
+
+    Red Scale does not evaluate benchmark rules itself.
     """
 
     benchmark_input = BenchmarkInput(
@@ -36,8 +88,10 @@ def benchmark_violations_from_result(
     result,
 ) -> list[RuleViolation]:
     """
-    Convert an existing benchmark-engine result into
-    Red Scale RuleViolation objects.
+    Translate benchmark-engine results into Red Scale API models.
+
+    No benchmark evaluation is performed here. The benchmark-engine
+    result is treated as the source of truth.
     """
 
     violations = []
@@ -46,13 +100,11 @@ def benchmark_violations_from_result(
         if metric.score >= 1.0:
             continue
 
-        severity = _severity_from_score(metric.score)
-
         violations.append(
             RuleViolation(
                 rule_id=f"BENCHMARK-{name.upper()}",
                 rule_name=name.replace("_", " ").title(),
-                severity=severity,
+                severity=_severity_from_score(metric.score),
                 message=_build_message(metric),
                 expected=metric.benchmark,
                 actual=str(metric.value),
@@ -66,7 +118,8 @@ def benchmark_violations(
     features: FlightFeatures,
 ) -> list[RuleViolation]:
     """
-    Evaluate benchmark-engine and return Red Scale violations.
+    Evaluate benchmark-engine and translate the result into
+    Red Scale violation models.
     """
 
     result = evaluate_benchmark(features)
@@ -75,7 +128,17 @@ def benchmark_violations(
 
 
 def _severity_from_score(score: float) -> str:
-    """Convert benchmark score into Red Scale severity."""
+    """
+    Temporarily translate benchmark-engine score into the
+    Red Scale severity representation.
+
+    TODO:
+        Once benchmark-engine exposes severity directly,
+        remove this compatibility mapping and consume the
+        engine-provided severity instead.
+
+    This function must not evolve into benchmark decision logic.
+    """
 
     if score <= 0.25:
         return "critical"
@@ -90,84 +153,29 @@ def _severity_from_score(score: float) -> str:
 
 
 def _build_message(metric) -> str:
-    """Create a human-readable violation message."""
+    """
+    Translate a benchmark-engine metric status into a
+    human-readable Red Scale API message.
+
+    The status itself is produced by benchmark-engine.
+    Red Scale only converts it into presentation text.
+    """
+
+    metric_name = metric.name.replace("_", " ").title()
 
     if metric.status == "ABOVE_LIMIT":
-        return (
-            f"{metric.name.replace('_', ' ').title()} "
-            f"is above the benchmark."
-        )
+        return f"{metric_name} is above the benchmark."
 
     if metric.status == "BELOW_RANGE":
-        return (
-            f"{metric.name.replace('_', ' ').title()} "
-            f"is below the benchmark range."
-        )
+        return f"{metric_name} is below the benchmark range."
 
     if metric.status == "ABOVE_RANGE":
-        return (
-            f"{metric.name.replace('_', ' ').title()} "
-            f"is above the benchmark range."
-        )
+        return f"{metric_name} is above the benchmark range."
 
     if metric.status == "BELOW_LIMIT":
-        return (
-            f"{metric.name.replace('_', ' ').title()} "
-            f"is below the benchmark."
-        )
+        return f"{metric_name} is below the benchmark."
 
     if metric.status == "OFF_TARGET":
-        return (
-            f"{metric.name.replace('_', ' ').title()} "
-            "is outside the target."
-        )
+        return f"{metric_name} is outside the target."
 
-    return (
-        f"{metric.name.replace('_', ' ').title()} "
-        "does not meet the benchmark."
-    )
-
-"""
-Adapter between Red Scale flight features and benchmark-engine.
-
-ARCHITECTURE OWNERSHIP
-----------------------
-Red Scale is responsible for:
-    - FDR parsing
-    - feature extraction
-    - adapting data into benchmark-engine inputs
-    - adapting benchmark-engine results into Red Scale API models
-    - API/UI presentation
-
-benchmark-engine is responsible for:
-    - benchmark definitions
-    - benchmark rules
-    - benchmark evaluation
-    - benchmark scoring
-    - domain-specific assessment logic
-
-IMPORTANT
----------
-Do NOT add aviation thresholds, aviation rules, or aviation scoring
-logic to Red Scale to compensate for limitations in benchmark-engine.
-
-TEMPORARY COMPATIBILITY / MISMATCH NOTES
------------------------------------------
-The current benchmark-engine version does not yet expose every flight
-metric that Red Scale extracts.
-
-For the current MVP, placeholder values/mappings may be used for
-metrics that are not yet supported by benchmark-engine.
-
-These placeholders are intentional and temporary.
-
-TODO - revisit when benchmark-engine evolves:
-    - Replace placeholder metric mappings with real benchmark-engine inputs.
-    - Add newly supported metrics such as pitch/climb-related metrics
-      when benchmark-engine exposes them.
-    - Revisit the adapter when the benchmark-engine result schema changes.
-    - Remove any temporary compatibility mappings once native support exists.
-
-The adapter must remain a translation layer. It must not become the
-location where aviation assessment logic is implemented.
-"""
+    return f"{metric_name} does not meet the benchmark."
