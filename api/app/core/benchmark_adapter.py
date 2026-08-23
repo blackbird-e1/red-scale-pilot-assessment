@@ -53,6 +53,7 @@ become a second location for aviation assessment logic.
 from benchmark_engine import BenchmarkEngine, BenchmarkInput
 from benchmark_engine.adapters.aviation import AVIATION_RULES
 
+from app.models.assessment import BenchmarkResult
 from app.models.flight_features import FlightFeatures
 from app.models.rule_violation import RuleViolation
 
@@ -84,14 +85,51 @@ def evaluate_benchmark(features: FlightFeatures):
     return _ENGINE.evaluate(benchmark_input)
 
 
+def benchmark_results_from_result(
+    result,
+) -> list[BenchmarkResult]:
+    """
+    Translate all benchmark-engine metric results into
+    Red Scale API benchmark result models.
+
+    No benchmark evaluation is performed here. The
+    benchmark-engine result is treated as the source of truth.
+
+    Unlike benchmark_violations_from_result(), this function
+    intentionally includes both passing and failing metrics.
+    """
+
+    results = []
+
+    for name, metric in result.metrics.items():
+        results.append(
+            BenchmarkResult(
+                rule_id=f"BENCHMARK-{name.upper()}",
+                rule_name=name.replace("_", " ").title(),
+                severity=_severity_from_score(metric.score),
+                message=_build_message(metric),
+                expected=metric.benchmark,
+                actual=str(metric.value),
+                benchmark_score=metric.score,
+                status=metric.status,
+                deviation=metric.deviation,
+            )
+        )
+
+    return results
+
+
 def benchmark_violations_from_result(
     result,
 ) -> list[RuleViolation]:
     """
-    Translate benchmark-engine results into Red Scale API models.
+    Translate failed benchmark-engine results into
+    Red Scale RuleViolation models.
 
-    No benchmark evaluation is performed here. The benchmark-engine
-    result is treated as the source of truth.
+    Passing benchmark metrics are intentionally excluded.
+
+    No benchmark evaluation is performed here. The
+    benchmark-engine result is treated as the source of truth.
     """
 
     violations = []
@@ -108,18 +146,34 @@ def benchmark_violations_from_result(
                 message=_build_message(metric),
                 expected=metric.benchmark,
                 actual=str(metric.value),
+                benchmark_score=metric.score,
+                status=metric.status,
+                deviation=metric.deviation,
             )
         )
 
     return violations
 
 
+def benchmark_results(
+    features: FlightFeatures,
+) -> list[BenchmarkResult]:
+    """
+    Evaluate benchmark-engine and translate all results into
+    Red Scale benchmark result models.
+    """
+
+    result = evaluate_benchmark(features)
+
+    return benchmark_results_from_result(result)
+
+
 def benchmark_violations(
     features: FlightFeatures,
 ) -> list[RuleViolation]:
     """
-    Evaluate benchmark-engine and translate the result into
-    Red Scale violation models.
+    Evaluate benchmark-engine and translate failed results
+    into Red Scale violation models.
     """
 
     result = evaluate_benchmark(features)

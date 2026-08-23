@@ -34,11 +34,13 @@ export interface RuleViolation {
   rule_id: string;
   rule_name: string;
   severity: ViolationSeverity;
-
   message: string;
-
   expected: string;
   actual: string;
+
+  benchmark_score: number;
+  status: string;
+  deviation: number;
 }
 
 export interface TelemetryPoint {
@@ -58,9 +60,15 @@ export interface TelemetryPoint {
 
 export interface Assessment {
   features: FlightFeatures;
+
+  benchmark_results: BenchmarkResult[];
+
   violations: RuleViolation[];
+
   visual_observations: VisualObservation[];
+
   risk_score: number;
+
   overall_rating: OverallRating;
 
   telemetry: TelemetryPoint[];
@@ -89,4 +97,16 @@ export interface VisualObservation {
   finding: string;
   confidence: number;
   source: string;
+}
+
+export interface BenchmarkResult {
+  rule_id: string;
+  rule_name: string;
+  severity: ViolationSeverity;
+  message: string;
+  expected: string;
+  actual: string;
+  benchmark_score: number;
+  status: string;
+  deviation: number;
 }

@@ -13,6 +13,8 @@ Feature Extraction
     ↓
 Benchmark Engine
     ↓
+Benchmark Results + Violations
+    ↓
 Risk Score
     ↓
 Telemetry Sampling
@@ -25,6 +27,7 @@ from pathlib import Path
 import pandas as pd
 
 from app.core.benchmark_adapter import (
+    benchmark_results_from_result,
     benchmark_violations_from_result,
     evaluate_benchmark,
 )
@@ -133,6 +136,10 @@ def assess_flight(
 
     benchmark_result = evaluate_benchmark(features)
 
+    benchmark_results = benchmark_results_from_result(
+        benchmark_result
+    )
+
     violations = benchmark_violations_from_result(
         benchmark_result
     )
@@ -159,10 +166,11 @@ def assess_flight(
 
     # -------------------------------------------------------------
     # Return Assessment
-    # -------------------------------------------------------------
+    # ------------------------------------------------------------
 
     return Assessment(
         features=features,
+        benchmark_results=benchmark_results,
         violations=violations,
         visual_observations=visual_observations or [],
         risk_score=risk_score,
