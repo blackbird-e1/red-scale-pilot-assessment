@@ -26,13 +26,32 @@ class VisualObservation(BaseModel):
     finding: str
     confidence: float = Field(ge=0, le=1)
     source: str
+
+
+class BenchmarkResult(BaseModel):
+    rule_id: str
+    rule_name: str
+    severity: Literal["low", "medium", "high", "critical"]
+
+    message: str
+
+    expected: str
+    actual: str
+
+    benchmark_score: float
+    status: str
+    deviation: float
+
+
 class Assessment(BaseModel):
     features: FlightFeatures
+
+    benchmark_results: list[BenchmarkResult]
 
     violations: list[RuleViolation]
 
     visual_observations: list[VisualObservation] = Field(
-    default_factory=list
+        default_factory=list
     )
 
     risk_score: float = Field(ge=0, le=100)

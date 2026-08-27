@@ -1,26 +1,61 @@
-from app.models.flight_features import FlightFeatures
-from app.models.rule_violation import RuleViolation
+"""
+Temporary compatibility mapping for benchmark-engine results.
+
+ARCHITECTURE
+------------
+benchmark-engine is the source of truth for:
+
+    - benchmark definitions
+    - thresholds
+    - rule evaluation
+    - benchmark scoring
+    - assessment logic
+    - future risk/severity calculations
+
+Red Scale should consume those results rather than implement
+its own assessment methodology.
+
+TEMPORARY COMPATIBILITY
+-----------------------
+The current benchmark-engine result exposes a normalized benchmark
+score but does not yet expose the final Red Scale risk representation.
+
+Until benchmark-engine provides that representation, this module
+performs a simple compatibility conversion:
+
+    benchmark score → Red Scale risk score
+
+This is intentionally temporary.
+
+TODO
+----
+When benchmark-engine exposes a native risk score:
+
+    1. Update benchmark_adapter.py to consume it.
+    2. Remove this conversion.
+    3. Remove this module if no longer required.
+
+Do not add aviation-specific thresholds or assessment rules here.
+"""
 
 
-def predict_risk(
-    features: FlightFeatures,
-    violations: list[RuleViolation],
-) -> float:
+def predict_risk(benchmark_score: float) -> float:
+    """
+    Temporarily convert a benchmark-engine score into the
+    Red Scale risk representation.
 
-    score = 0.0
+    benchmark-engine score:
+        0.0 = worst performance
+        1.0 = best performance
 
-    score += len(violations) * 15
+    Red Scale risk:
+        0.0 = no risk
+        100.0 = maximum risk
 
-    if features.max_bank_angle_deg > 45:
-        score += 20
+    This conversion is compatibility code only. The permanent
+    risk calculation belongs in benchmark-engine.
+    """
 
-    if features.max_speed_knots > 250:
-        score += 20
+    benchmark_score = max(0.0, min(1.0, benchmark_score))
 
-    if features.max_climb_rate_fpm > 2000:
-        score += 15
-
-    if features.max_descent_rate_fpm > 1500:
-        score += 15
-
-    return min(score, 100.0)
+    return (1.0 - benchmark_score) * 100.0

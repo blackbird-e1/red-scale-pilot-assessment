@@ -146,8 +146,3 @@ app.include_router(
     prefix="/api/v1",
 )
 
-# Flight assessment
-app.include_router(
-    assessment_router,
-    prefix="/api/v1",
-)

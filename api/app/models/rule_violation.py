@@ -12,3 +12,7 @@ class RuleViolation(BaseModel):
 
     expected: str
     actual: str
+
+    benchmark_score: float
+    status: str
+    deviation: float
