@@ -36,3 +36,9 @@ pandas==2.2.3
 numpy==2.2.1
 scikit-learn==1.6.1
 benchmark-e1==0.1.1
+
+psycopg[binary]==3.2.3
+
+google-auth==2.40.3
+
+python-jose[cryptography]==3.4.0

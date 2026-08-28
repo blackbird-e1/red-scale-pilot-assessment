@@ -1,36 +1,53 @@
-from typing import TypedDict
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import User, UserRole
 
 
-class AuthenticatedUser(TypedDict):
-    username: str
-    role: str
+async def get_user_by_google_id(
+    db: AsyncSession,
+    google_id: str,
+) -> User | None:
+    result = await db.execute(
+        select(User).where(User.google_id == google_id)
+    )
+
+    return result.scalar_one_or_none()
 
 
-USERS: dict[str, dict[str, str]] = {
-    "trainer": {
-        "password": "trainer123",
-        "role": "trainer",
-    },
-    "trainee": {
-        "password": "trainee123",
-        "role": "trainee",
-    },
-}
+async def get_or_create_google_user(
+    db: AsyncSession,
+    google_id: str,
+    email: str,
+    name: str,
+    avatar_url: str | None,
+) -> User:
+    user = await get_user_by_google_id(
+        db=db,
+        google_id=google_id,
+    )
 
+    if user is not None:
+        user.email = email
+        user.name = name
+        user.avatar_url = avatar_url
 
-def authenticate_user(
-    username: str,
-    password: str,
-) -> AuthenticatedUser | None:
-    user = USERS.get(username)
+        await db.commit()
+        await db.refresh(user)
 
-    if user is None:
-        return None
+        return user
 
-    if user["password"] != password:
-        return None
+    user = User(
+        google_id=google_id,
+        email=email,
+        name=name,
+        avatar_url=avatar_url,
+        role=UserRole.TRAINEE,
+    )
 
-    return {
-        "username": username,
-        "role": user["role"],
-    }
+    db.add(user)
+
+    await db.commit()
+    await db.refresh(user)
+
+    return user
