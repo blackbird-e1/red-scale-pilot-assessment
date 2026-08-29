@@ -5,7 +5,7 @@ import AssessmentResults from './components/AssessmentResults';
 import type { Assessment } from './types';
 import ChatAssistant from './components/ChatAssistant';
 import Login from './components/Login';
-import type { UserRole } from './api/auth';
+import type { LoginResponse } from './api/auth';
 import TraineeDashboard from './components/TraineeDashboard';
 
 const CAPABILITIES = [
@@ -75,10 +75,7 @@ function WorkflowNode({
 }
 
 export default function App() {
-  const [auth, setAuth] = useState<{
-    username: string;
-    role: UserRole;
-  } | null>(() => {
+  const [auth, setAuth] = useState<LoginResponse | null>(() => {
     const stored = localStorage.getItem('red-scale-auth');
 
     if (!stored) {
@@ -86,7 +83,7 @@ export default function App() {
     }
 
     try {
-      return JSON.parse(stored);
+      return JSON.parse(stored) as LoginResponse;
     } catch {
       localStorage.removeItem('red-scale-auth');
       return null;
@@ -106,18 +103,13 @@ export default function App() {
     setFileName('');
   }
 
-  function handleLogin(username: string, role: UserRole) {
-    const session = {
-      username,
-      role,
-    };
-
+  function handleLogin(result: LoginResponse) {
     localStorage.setItem(
       'red-scale-auth',
-      JSON.stringify(session),
+      JSON.stringify(result),
     );
 
-    setAuth(session);
+    setAuth(result);
   }
 
   function handleLogout() {
@@ -137,12 +129,12 @@ export default function App() {
         <Header
           onNewAssessment={handleNewAssessment}
           hasAssessment={false}
-          username={auth.username}
+          username={auth.name}
           role={auth.role}
           onLogout={handleLogout}
         />
 
-        <TraineeDashboard username={auth.username} />
+        <TraineeDashboard username={auth.name} />
 
         <ChatAssistant />
       </div>
@@ -154,7 +146,7 @@ export default function App() {
       <Header
         onNewAssessment={handleNewAssessment}
         hasAssessment={assessment !== null}
-        username={auth.username}
+        username={auth.name}
         role={auth.role}
         onLogout={handleLogout}
       />

@@ -1,30 +1,31 @@
 export type UserRole = 'trainer' | 'trainee';
 
 export interface LoginResponse {
-  authenticated: boolean;
-  username: string;
+  access_token: string;
+  token_type: string;
+  user_id: string;
+  email: string;
+  name: string;
   role: UserRole;
 }
 
 const API_BASE_URL = '/api/v1';
 
-export async function login(
-  username: string,
-  password: string,
+export async function loginWithGoogle(
+  credential: string,
 ): Promise<LoginResponse> {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  const response = await fetch(`${API_BASE_URL}/auth/google`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      username,
-      password,
+      credential,
     }),
   });
 
   if (!response.ok) {
-    let message = `Login failed (${response.status})`;
+    let message = `Google login failed (${response.status})`;
 
     try {
       const data = await response.json();
