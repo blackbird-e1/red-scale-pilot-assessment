@@ -3,15 +3,18 @@ Chat router — POST /chat (non-streaming) and POST /chat/stream (SSE streaming)
 """
 
 import json
-import uuid
 import logging
+import uuid
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
 from app.agent import run_agent, stream_agent
+from app.dependencies.auth import get_current_user
 from app.models.schemas import ChatRequest, ChatResponse, StreamChunk
+from app.models.user import User
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +26,24 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 # ---------------------------------------------------------------------------
 
 @router.post("", response_model=ChatResponse)
-async def chat(request: Request, body: ChatRequest) -> ChatResponse:
+async def chat(
+    request: Request,
+    body: ChatRequest,
+    current_user: User = Depends(get_current_user),
+) -> ChatResponse:
     """
     Send a message to the F1 agent and receive a complete answer.
 
-    Use this endpoint for simple integrations that don't need streaming.
-    For a better UX in chat interfaces, prefer POST /chat/stream.
+    Requires authentication.
     """
+
     conversation_id = body.conversation_id or str(uuid.uuid4())
     history = [m.model_dump() for m in body.history] if body.history else None
 
-    answer = await run_agent(message=body.message, history=history)
+    answer = await run_agent(
+        message=body.message,
+        history=history,
+    )
 
     return ChatResponse(
         answer=answer,
@@ -47,9 +57,15 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
 # ---------------------------------------------------------------------------
 
 @router.post("/stream")
-async def chat_stream(request: Request, body: ChatRequest) -> StreamingResponse:
+async def chat_stream(
+    request: Request,
+    body: ChatRequest,
+    current_user: User = Depends(get_current_user),
+) -> StreamingResponse:
     """
     Stream the F1 agent's response as Server-Sent Events.
+
+    Requires authentication.
 
     Event types:
       - `delta`      — a text chunk to append to the UI
@@ -60,24 +76,45 @@ async def chat_stream(request: Request, body: ChatRequest) -> StreamingResponse:
     Example SSE message:
       data: {"type": "delta", "content": "Lewis Hamilton"}
     """
+
     conversation_id = body.conversation_id or str(uuid.uuid4())
     history = [m.model_dump() for m in body.history] if body.history else None
 
     async def event_generator() -> AsyncGenerator[str, None]:
         try:
             async for event_type, payload in stream_agent(
-                message=body.message, history=history
+                message=body.message,
+                history=history,
             ):
                 chunk = StreamChunk(
                     type=event_type,
-                    content=payload if event_type in ("delta", "done", "error") else "",
-                    tool_name=payload if event_type == "tool_call" else None,
-                    conversation_id=conversation_id if event_type == "done" else None,
+                    content=(
+                        payload
+                        if event_type in ("delta", "done", "error")
+                        else ""
+                    ),
+                    tool_name=(
+                        payload
+                        if event_type == "tool_call"
+                        else None
+                    ),
+                    conversation_id=(
+                        conversation_id
+                        if event_type == "done"
+                        else None
+                    ),
                 )
+
                 yield f"data: {chunk.model_dump_json()}\n\n"
+
         except Exception as exc:
             logger.error("Stream error: %s", exc)
-            error_chunk = StreamChunk(type="error", content=str(exc))
+
+            error_chunk = StreamChunk(
+                type="error",
+                content=str(exc),
+            )
+
             yield f"data: {error_chunk.model_dump_json()}\n\n"
 
     return StreamingResponse(
