@@ -1,3 +1,5 @@
+import { authenticatedFetch } from './client';
+
 export type UserRole = 'trainer' | 'trainee';
 
 export interface LoginResponse {
@@ -6,6 +8,14 @@ export interface LoginResponse {
   user_id: string;
   email: string;
   name: string;
+  role: UserRole;
+}
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string | null;
   role: UserRole;
 }
 
@@ -41,4 +51,26 @@ export async function loginWithGoogle(
   }
 
   return response.json() as Promise<LoginResponse>;
+}
+
+export async function getCurrentUser(): Promise<CurrentUser> {
+  const response = await authenticatedFetch('/auth/me');
+
+  if (!response.ok) {
+    let message = `Unable to load current user (${response.status})`;
+
+    try {
+      const data = await response.json();
+
+      if (typeof data.detail === 'string') {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<CurrentUser>;
 }

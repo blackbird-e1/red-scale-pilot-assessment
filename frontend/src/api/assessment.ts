@@ -1,8 +1,10 @@
 import type { Assessment } from '../types';
+import { authenticatedFetch } from './client';
 
-const API_BASE_URL = '/api/v1';
-
-export async function assessFlight(file: File, image?: File,): Promise<Assessment> {
+export async function assessFlight(
+  file: File,
+  image?: File,
+): Promise<Assessment> {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -10,7 +12,7 @@ export async function assessFlight(file: File, image?: File,): Promise<Assessmen
     formData.append('image', image);
   }
 
-  const response = await fetch(`${API_BASE_URL}/assessment`, {
+  const response = await authenticatedFetch('/assessment', {
     method: 'POST',
     body: formData,
   });
