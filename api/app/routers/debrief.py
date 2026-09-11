@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.dependencies.auth import get_current_user
 from app.models.assessment import Assessment
 from app.models.debrief import DebriefResponse
+from app.models.user import User
 from app.services.debrief_service import generate_debrief
 
 
@@ -18,9 +20,12 @@ router = APIRouter(
 )
 async def create_debrief(
     assessment: Assessment,
+    current_user: User = Depends(get_current_user),
 ) -> DebriefResponse:
     """
     Generate an AI mission debrief from a deterministic assessment.
+
+    Only authenticated users can generate debriefs.
     """
 
     try:

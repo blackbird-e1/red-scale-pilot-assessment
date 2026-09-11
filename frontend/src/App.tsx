@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Header from './components/Header';
 import FDRUpload from './components/FDRUpload';
 import AssessmentResults from './components/AssessmentResults';
 import type { Assessment } from './types';
 import ChatAssistant from './components/ChatAssistant';
 import Login from './components/Login';
-import type { UserRole } from './api/auth';
+import {
+  getCurrentUser,
+  type CurrentUser,
+  type LoginResponse,
+} from './api/auth';
+import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
 
 const CAPABILITIES = [
@@ -75,26 +80,57 @@ function WorkflowNode({
 }
 
 export default function App() {
-  const [auth, setAuth] = useState<{
-    username: string;
-    role: UserRole;
-  } | null>(() => {
-    const stored = localStorage.getItem('red-scale-auth');
+    const [auth, setAuth] = useState<CurrentUser | null>(null);
+    const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
-    if (!stored) {
-      return null;
-    }
+    const [assessment, setAssessment] = useState<Assessment | null>(null);
+    const [fileName, setFileName] = useState('');
 
-    try {
-      return JSON.parse(stored);
-    } catch {
+    useEffect(() => {
+      async function validateSession() {
+        const stored = localStorage.getItem('red-scale-auth');
+
+        if (!stored) {
+          setIsCheckingAuth(false);
+          return;
+        }
+
+        try {
+          const currentUser = await getCurrentUser();
+
+          setAuth(currentUser);
+        } catch {
+          localStorage.removeItem('red-scale-auth');
+          setAuth(null);
+        } finally {
+          setIsCheckingAuth(false);
+        }
+      }
+
+      validateSession();
+    }, []);
+
+  useEffect(() => {
+    function handleUnauthorized() {
       localStorage.removeItem('red-scale-auth');
-      return null;
+      setAuth(null);
+      setAssessment(null);
+      setFileName('');
     }
-  });
 
-  const [assessment, setAssessment] = useState<Assessment | null>(null);
-  const [fileName, setFileName] = useState('');
+    window.addEventListener(
+      AUTH_EVENTS.unauthorized,
+      handleUnauthorized,
+    );
+
+    return () => {
+      window.removeEventListener(
+        AUTH_EVENTS.unauthorized,
+        handleUnauthorized,
+      );
+    };
+  }, []);
+
 
   function handleAssessment(result: Assessment, name: string) {
     setAssessment(result);
@@ -106,18 +142,19 @@ export default function App() {
     setFileName('');
   }
 
-  function handleLogin(username: string, role: UserRole) {
-    const session = {
-      username,
-      role,
-    };
-
+  function handleLogin(result: LoginResponse) {
     localStorage.setItem(
       'red-scale-auth',
-      JSON.stringify(session),
+      JSON.stringify(result),
     );
 
-    setAuth(session);
+    setAuth({
+      id: result.user_id,
+      email: result.email,
+      name: result.name,
+      avatar_url: null,
+      role: result.role,
+    });
   }
 
   function handleLogout() {
@@ -125,6 +162,20 @@ export default function App() {
     setAuth(null);
     setAssessment(null);
     setFileName('');
+  }
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0c0c0c]">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#e10600]/20 border-t-[#e10600]" />
+
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
+            Validating session
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!auth) {
@@ -137,12 +188,12 @@ export default function App() {
         <Header
           onNewAssessment={handleNewAssessment}
           hasAssessment={false}
-          username={auth.username}
+          username={auth.name}
           role={auth.role}
           onLogout={handleLogout}
         />
 
-        <TraineeDashboard username={auth.username} />
+        <TraineeDashboard username={auth.name} />
 
         <ChatAssistant />
       </div>
@@ -154,7 +205,7 @@ export default function App() {
       <Header
         onNewAssessment={handleNewAssessment}
         hasAssessment={assessment !== null}
-        username={auth.username}
+        username={auth.name}
         role={auth.role}
         onLogout={handleLogout}
       />

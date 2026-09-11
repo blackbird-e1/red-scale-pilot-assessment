@@ -1,35 +1,37 @@
-import { useState, type FormEvent } from 'react';
-import { login, type UserRole } from '../api/auth';
+import { useState } from 'react';
+import { GoogleLogin } from '@react-oauth/google';
+import { loginWithGoogle, type LoginResponse } from '../api/auth';
 
 interface LoginProps {
-  onLogin: (username: string, role: UserRole) => void;
+  onLogin: (result: LoginResponse) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleGoogleSuccess(credential: string) {
     setError('');
     setIsLoading(true);
 
     try {
-      const result = await login(username.trim(), password);
+      const result = await loginWithGoogle(credential);
 
-      onLogin(result.username, result.role);
+      onLogin(result);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Unable to sign in.',
+          : 'Unable to sign in with Google.',
       );
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function handleGoogleError() {
+    setError('Google authentication failed.');
+    setIsLoading(false);
   }
 
   return (
@@ -64,69 +66,36 @@ export default function Login({ onLogin }: LoginProps) {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <div>
-              <label
-                htmlFor="username"
-                className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500"
-              >
-                Username
-              </label>
-
-              <input
-                id="username"
-                type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoComplete="username"
-                required
-                disabled={isLoading}
-                placeholder="Enter username"
-                className="w-full rounded-xl border border-[#303030] bg-[#171717] px-4 py-3 text-sm text-white outline-none placeholder:text-gray-700 focus:border-[#e10600]"
+          <div className="mt-8 flex justify-center">
+            {isLoading ? (
+              <p className="text-sm text-gray-500">
+                Signing in...
+              </p>
+            ) : (
+              <GoogleLogin
+                onSuccess={(response) => {
+                  if (response.credential) {
+                    handleGoogleSuccess(response.credential);
+                  } else {
+                    handleGoogleError();
+                  }
+                }}
+                onError={handleGoogleError}
               />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-500"
-              >
-                Password
-              </label>
-
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-                required
-                disabled={isLoading}
-                placeholder="Enter password"
-                className="w-full rounded-xl border border-[#303030] bg-[#171717] px-4 py-3 text-sm text-white outline-none placeholder:text-gray-700 focus:border-[#e10600]"
-              />
-            </div>
-
-            {error && (
-              <div className="rounded-xl border border-red-900/50 bg-red-950/20 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-red-300">
-                  Authentication Error
-                </p>
-
-                <p className="mt-1 text-sm text-red-400">
-                  {error}
-                </p>
-              </div>
             )}
+          </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full rounded-xl bg-[#e10600] px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-white hover:bg-[#c80500] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? 'Signing In...' : 'Sign In'}
-            </button>
-          </form>
+          {error && (
+            <div className="mt-5 rounded-xl border border-red-900/50 bg-red-950/20 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-red-300">
+                Authentication Error
+              </p>
+
+              <p className="mt-1 text-sm text-red-400">
+                {error}
+              </p>
+            </div>
+          )}
 
           <div className="mt-8 border-t border-[#222222] pt-5 text-center">
             <p className="text-[10px] uppercase tracking-[0.2em] text-gray-700">

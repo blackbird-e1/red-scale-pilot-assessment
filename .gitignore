@@ -33,3 +33,5 @@ logs/
 # ── Nginx / Certbot ────────────────────────────────────────────────────────────
 nginx/certbot/conf/
 nginx/certbot/www/
+
+note.txt

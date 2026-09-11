@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { Message, Role, StreamChunk } from '../types';
+import { authenticatedFetch } from '../api/client';
 
 function generateId(): string {
   return Math.random().toString(36).slice(2, 11);
@@ -33,7 +34,7 @@ export function useChat() {
     try {
       const history = messages.map((m) => ({ role: m.role as Role, content: m.content }));
 
-      const response = await fetch('/api/v1/chat/stream', {
+      const response = await authenticatedFetch('/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

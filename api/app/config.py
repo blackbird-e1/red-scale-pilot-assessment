@@ -15,14 +15,12 @@ class Settings(BaseSettings):
         "openai/gpt-oss-120b",
         alias="GROQ_MODEL",
     )
-
     groq_vision_model: str = Field(
         "meta-llama/llama-4-scout-17b-16e-instruct",
         alias="GROQ_VISION_MODEL",
     )
 
     # PostgreSQL
-    # Not required for the MVP yet.
     database_url: str | None = Field(
         default=None,
         alias="DATABASE_URL",
@@ -33,7 +31,6 @@ class Settings(BaseSettings):
     )
 
     # pgvector / RAG
-    # Not used in Phase 1.
     embedding_model: str = Field(
         "text-embedding-3-small",
         alias="EMBEDDING_MODEL",
@@ -44,14 +41,12 @@ class Settings(BaseSettings):
     )
 
     # Redis
-    # Not used in the MVP initially.
     redis_url: str = Field(
         "redis://localhost:6379/0",
         alias="REDIS_URL",
     )
 
     # FastF1
-    # Keep for now, but it is not part of the flight assessment MVP.
     fastf1_cache_dir: str = Field(
         ".fastf1_cache",
         alias="FASTF1_CACHE_DIR",
@@ -73,6 +68,26 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = Field(
         20,
         alias="RATE_LIMIT_PER_MINUTE",
+    )
+
+    # Authentication
+    jwt_secret_key: str = Field(
+        ...,
+        alias="JWT_SECRET_KEY",
+    )
+    jwt_algorithm: str = Field(
+        "HS256",
+        alias="JWT_ALGORITHM",
+    )
+    jwt_expire_minutes: int = Field(
+        60,
+        alias="JWT_EXPIRE_MINUTES",
+    )
+
+    # Google Authentication
+    google_client_id: str = Field(
+        ...,
+        alias="GOOGLE_CLIENT_ID",
     )
 
     # Environment

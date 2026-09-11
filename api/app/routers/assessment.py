@@ -1,9 +1,11 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
+from app.dependencies.auth import require_trainer
 from app.models.assessment import Assessment
+from app.models.user import User
 from app.services.assessment_service import assess_flight
 from app.services.vision_service import analyze_image
 
@@ -31,10 +33,13 @@ MAX_IMAGE_SIZE = 10 * 1024 * 1024
 async def create_assessment(
     file: UploadFile = File(...),
     image: UploadFile | None = File(None),
+    current_user: User = Depends(require_trainer),
 ) -> Assessment:
     """
     Assess an uploaded flight-data CSV file with optional
     visual evidence.
+
+    Only authenticated trainers can create assessments.
     """
 
     if not file.filename:

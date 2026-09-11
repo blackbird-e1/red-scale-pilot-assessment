@@ -79,6 +79,8 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
 
+  timestamp?: Date;
+
   streaming?: boolean;
   error?: boolean;
 
@@ -109,4 +111,13 @@ export interface BenchmarkResult {
   benchmark_score: number;
   status: string;
   deviation: number;
+}
+
+export type Role = 'user' | 'assistant';
+
+export interface StreamChunk {
+  type: 'delta' | 'tool_call' | 'done' | 'error';
+  content: string;
+  tool_name?: string | null;
+  conversation_id?: string | null;
 }
