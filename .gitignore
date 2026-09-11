@@ -35,3 +35,4 @@ nginx/certbot/conf/
 nginx/certbot/www/
 
 note.txt
+trainer-postgres.txt
