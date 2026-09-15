@@ -7,8 +7,10 @@ import ChatAssistant from './components/ChatAssistant';
 import Login from './components/Login';
 import {
   getCurrentUser,
+  getTrainees,
   type CurrentUser,
   type LoginResponse,
+  type Trainee,
 } from './api/auth';
 import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
@@ -82,8 +84,8 @@ function WorkflowNode({
 export default function App() {
     const [auth, setAuth] = useState<CurrentUser | null>(null);
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
     const [assessment, setAssessment] = useState<Assessment | null>(null);
+    const [trainees, setTrainees] = useState<Trainee[]>([]);
     const [fileName, setFileName] = useState('');
 
     useEffect(() => {
@@ -130,6 +132,24 @@ export default function App() {
       );
     };
   }, []);
+
+  useEffect(() => {
+    if (!auth || auth.role !== 'trainer') {
+      setTrainees([]);
+      return;
+    }
+
+    async function loadTrainees() {
+      try {
+        const result = await getTrainees();
+        setTrainees(result);
+      } catch (err) {
+        console.error('Unable to load trainees:', err);
+      }
+    }
+
+    loadTrainees();
+  }, [auth]);
 
 
   function handleAssessment(result: Assessment, name: string) {
@@ -357,7 +377,10 @@ export default function App() {
                   </p>
                 </div>
 
-                <FDRUpload onAssessment={handleAssessment} />
+                <FDRUpload
+                  onAssessment={handleAssessment}
+                  trainees={trainees}
+                />
 
                 <div className="mt-5 flex items-center gap-2 text-xs text-gray-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />

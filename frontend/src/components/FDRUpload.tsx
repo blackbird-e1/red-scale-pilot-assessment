@@ -4,15 +4,18 @@ import {
   type ChangeEvent,
 } from 'react';
 import { assessFlight } from '../api/assessment';
+import type { Trainee } from '../api/auth';
 import type { Assessment } from '../types';
 
 interface FDRUploadProps {
   onAssessment: (assessment: Assessment, fileName: string) => void;
+  trainees: Trainee[];
   disabled?: boolean;
 }
 
 export default function FDRUpload({
   onAssessment,
+  trainees,
   disabled = false,
 }: FDRUploadProps) {
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -23,6 +26,7 @@ export default function FDRUpload({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [isAssessing, setIsAssessing] = useState(false);
+  const [selectedTraineeId, setSelectedTraineeId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   function handleCsvChange(event: ChangeEvent<HTMLInputElement>) {
@@ -92,6 +96,11 @@ export default function FDRUpload({
   }
 
   async function handleAssessment() {
+    if (!selectedTraineeId) {
+      setError('Please select a trainee first.');
+      return;
+    }
+
     if (!csvFile) {
       setError('Please select a flight-data CSV first.');
       return;
@@ -103,6 +112,7 @@ export default function FDRUpload({
     try {
       const assessment = await assessFlight(
         csvFile,
+        selectedTraineeId,
         imageFile || undefined,
       );
 
@@ -158,6 +168,37 @@ export default function FDRUpload({
         onChange={handleImageChange}
         className="hidden"
       />
+
+      {/* Trainee selection */}
+      <div className="mb-4 rounded-2xl border border-[#292929] bg-[#131313] p-5">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-white">
+            Pilot
+          </p>
+
+          <p className="mt-1 text-sm leading-5 text-gray-600">
+            Select the trainee this flight assessment belongs to.
+          </p>
+        </div>
+
+        <select
+          value={selectedTraineeId}
+          onChange={(event) => {
+            setSelectedTraineeId(event.target.value);
+            setError(null);
+          }}
+          disabled={busy}
+          className="mt-4 w-full rounded-xl border border-[#343434] bg-[#171717] px-4 py-3 text-sm text-white outline-none transition-colors focus:border-[#e10600]/60 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <option value="">Select a trainee</option>
+
+          {trainees.map((trainee) => (
+            <option key={trainee.id} value={trainee.id}>
+              {trainee.name} — {trainee.email}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* CSV upload */}
       <button

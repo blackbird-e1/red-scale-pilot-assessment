@@ -121,3 +121,43 @@ export interface StreamChunk {
   tool_name?: string | null;
   conversation_id?: string | null;
 }
+
+export interface AssessmentHistoryItem {
+  id: string;
+  created_at: string;
+
+  source_filename: string;
+
+  benchmark_id: string;
+  benchmark_version: string;
+
+  risk_score: number;
+  overall_rating: OverallRating;
+
+  duration_sec: number;
+  max_speed_knots: number;
+  max_bank_angle_deg: number;
+  max_descent_rate_fpm: number;
+}
+
+export interface AssessmentDetail {
+  id: string;
+  pilot_id: string;
+  created_by: string;
+  created_at: string;
+
+  source_filename: string;
+
+  benchmark_id: string;
+  benchmark_version: string;
+
+  features: FlightFeatures;
+
+  risk_score: number;
+  overall_rating: OverallRating;
+
+  benchmark_results: BenchmarkResult[];
+  violations: RuleViolation[];
+  visual_observations: VisualObservation[];
+  telemetry: TelemetryPoint[];
+}

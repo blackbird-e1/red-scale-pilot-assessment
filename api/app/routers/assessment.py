@@ -14,6 +14,7 @@ from app.models.user import User, UserRole
 from app.services.assessment_service import assess_flight
 from app.services.vision_service import analyze_image
 from app.models.assessment_history import AssessmentHistoryItem
+from app.models.assessment_detail import AssessmentDetail
 
 router = APIRouter(
     prefix="/assessment",
@@ -287,6 +288,74 @@ async def get_pilot_assessment_history(
             benchmark_version=record.benchmark_version,
             risk_score=record.risk_score,
             overall_rating=record.overall_rating,
+            duration_sec=record.duration_sec,
+            max_speed_knots=record.max_speed_knots,
+            max_bank_angle_deg=record.max_bank_angle_deg,
+            max_descent_rate_fpm=record.max_descent_rate_fpm,
         )
         for record in records
     ]
+
+
+@router.get(
+    "/{assessment_id}",
+    response_model=AssessmentDetail,
+    status_code=status.HTTP_200_OK,
+)
+async def get_assessment(
+    assessment_id: UUID,
+    current_user: User = Depends(require_trainer),
+    db: AsyncSession = Depends(get_db),
+) -> AssessmentDetail:
+    """
+    Return the complete persisted assessment.
+
+    Only authenticated trainers can access assessment details.
+    """
+
+    result = await db.execute(
+        select(AssessmentRecord).where(
+            AssessmentRecord.id == assessment_id
+        )
+    )
+
+    record = result.scalar_one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assessment not found.",
+        )
+
+    features = {
+        "duration_sec": record.duration_sec,
+        "max_altitude_ft": record.max_altitude_ft,
+        "min_altitude_ft": record.min_altitude_ft,
+        "max_speed_knots": record.max_speed_knots,
+        "avg_speed_knots": record.avg_speed_knots,
+        "max_pitch_deg": record.max_pitch_deg,
+        "min_pitch_deg": record.min_pitch_deg,
+        "max_roll_deg": record.max_roll_deg,
+        "min_roll_deg": record.min_roll_deg,
+        "max_bank_angle_deg": record.max_bank_angle_deg,
+        "max_climb_rate_fpm": record.max_climb_rate_fpm,
+        "max_descent_rate_fpm": record.max_descent_rate_fpm,
+        "avg_throttle_percent": record.avg_throttle_percent,
+    }
+
+    return AssessmentDetail(
+        id=record.id,
+        pilot_id=record.pilot_id,
+        created_by=record.created_by,
+        created_at=record.created_at,
+        source_filename=record.source_filename,
+        benchmark_id=record.benchmark_id,
+        benchmark_version=record.benchmark_version,
+        features=features,
+        risk_score=record.risk_score,
+        overall_rating=record.overall_rating,
+        benchmark_results=record.benchmark_results,
+        violations=record.violations,
+        visual_observations=record.visual_observations,
+        telemetry=record.telemetry,
+    )
