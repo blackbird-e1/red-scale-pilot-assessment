@@ -213,7 +213,10 @@ export default function App() {
           onLogout={handleLogout}
         />
 
-        <TraineeDashboard username={auth.name} />
+        <TraineeDashboard
+          username={auth.name}
+          pilotId={auth.id}
+        />
 
         <ChatAssistant />
       </div>

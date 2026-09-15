@@ -1,10 +1,28 @@
+import { useState } from 'react';
+import AssessmentHistory from './AssessmentHistory';
+import AssessmentDetail from './AssessmentDetail';
 interface TraineeDashboardProps {
   username: string;
+  pilotId: string;
 }
 
 export default function TraineeDashboard({
   username,
+  pilotId,
 }: TraineeDashboardProps) {
+
+  const [selectedAssessmentId, setSelectedAssessmentId] =
+    useState<string | null>(null);
+
+  if (selectedAssessmentId) {
+    return (
+      <AssessmentDetail
+        assessmentId={selectedAssessmentId}
+        onBack={() => setSelectedAssessmentId(null)}
+      />
+    );
+  }
+      
   return (
     <main className="flex-1">
       <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
@@ -90,6 +108,15 @@ export default function TraineeDashboard({
                 Latest instructor debrief
               </p>
             </div>
+          </div>
+
+          <div className="mt-8">
+            <AssessmentHistory
+              pilotId={pilotId}
+              onSelectAssessment={(assessmentId) => {
+                setSelectedAssessmentId(assessmentId);
+              }}
+            />
           </div>
         </section>
 

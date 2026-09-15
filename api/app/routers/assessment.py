@@ -7,7 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies.auth import require_trainer
+from app.dependencies.auth import (
+    get_current_user,
+    require_trainer,
+)
 from app.models.assessment import Assessment
 from app.models.assessment_record import AssessmentRecord
 from app.models.user import User, UserRole
@@ -71,6 +74,7 @@ async def create_assessment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pilot/trainee not found.",
         )
+
 
     # ---------------------------------------------------------
     # Validate CSV
@@ -239,13 +243,14 @@ async def create_assessment(
 )
 async def get_pilot_assessment_history(
     pilot_id: UUID,
-    current_user: User = Depends(require_trainer),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[AssessmentHistoryItem]:
     """
     Return assessment history for a trainee.
 
-    Only authenticated trainers can access assessment history.
+    Trainers can view trainee history.
+    Trainees can only view their own history.
     """
 
     # ---------------------------------------------------------
@@ -266,6 +271,13 @@ async def get_pilot_assessment_history(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Pilot/trainee not found.",
         )
+
+    if current_user.role == UserRole.TRAINEE:
+        if pilot_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own assessment history.",
+            )
 
     # ---------------------------------------------------------
     # Fetch assessment history
@@ -304,13 +316,14 @@ async def get_pilot_assessment_history(
 )
 async def get_assessment(
     assessment_id: UUID,
-    current_user: User = Depends(require_trainer),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> AssessmentDetail:
     """
     Return the complete persisted assessment.
 
-    Only authenticated trainers can access assessment details.
+    Trainers can view assessments.
+    Trainees can only view their own assessment.
     """
 
     result = await db.execute(
@@ -326,6 +339,13 @@ async def get_assessment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Assessment not found.",
         )
+
+    if current_user.role == UserRole.TRAINEE:
+        if record.pilot_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own assessment.",
+            )
 
     features = {
         "duration_sec": record.duration_sec,
