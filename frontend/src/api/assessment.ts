@@ -2,6 +2,7 @@ import type {
   Assessment,
   AssessmentDetail,
   AssessmentHistoryItem,
+  PilotDNA,
 } from '../types';
 import { authenticatedFetch } from './client';
 
@@ -123,4 +124,30 @@ export async function getTrainees(): Promise<Trainee[]> {
   }
 
   return response.json() as Promise<Trainee[]>;
+}
+
+export async function getPilotDNA(
+  pilotId: string,
+): Promise<PilotDNA> {
+  const response = await authenticatedFetch(
+    `/assessment/pilot/${pilotId}/dna`,
+  );
+
+  if (!response.ok) {
+    let message = `Unable to load Pilot DNA (${response.status})`;
+
+    try {
+      const data = await response.json();
+
+      if (typeof data.detail === 'string') {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<PilotDNA>;
 }

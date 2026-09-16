@@ -161,3 +161,33 @@ export interface AssessmentDetail {
   visual_observations: VisualObservation[];
   telemetry: TelemetryPoint[];
 }
+
+export interface RecurringViolation {
+  rule_id: string;
+  rule_name: string;
+  occurrences: number;
+  total_assessments: number;
+  severity: ViolationSeverity;
+  percentage: number;
+}
+
+export interface PilotDNA {
+  pilot_id: string;
+  assessment_count: number;
+  latest_risk: number | null;
+  average_risk: number | null;
+  risk_trend: string;
+  strengths: string[];
+  weaknesses: string[];
+  recurring_violations: RecurringViolation[];
+  latest_assessment_date: string | null;
+}
+
+export interface RecurringViolation {
+  rule_id: string;
+  rule_name: string;
+  occurrences: number;
+  total_assessments: number;
+  severity: ViolationSeverity;
+  percentage: number;
+}
