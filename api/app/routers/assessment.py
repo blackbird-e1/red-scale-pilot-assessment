@@ -18,6 +18,8 @@ from app.services.assessment_service import assess_flight
 from app.services.vision_service import analyze_image
 from app.models.assessment_history import AssessmentHistoryItem
 from app.models.assessment_detail import AssessmentDetail
+from app.models.pilot_dna import PilotDNA
+from app.services.pilot_dna import build_pilot_dna
 
 router = APIRouter(
     prefix="/assessment",
@@ -379,3 +381,79 @@ async def get_assessment(
         visual_observations=record.visual_observations,
         telemetry=record.telemetry,
     )
+
+@router.get(
+    "/pilot/{pilot_id}/dna",
+    response_model=PilotDNA,
+    status_code=status.HTTP_200_OK,
+)
+async def get_pilot_dna(
+    pilot_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PilotDNA:
+    """
+    Return the longitudinal Pilot DNA for a trainee.
+
+    Trainers can view any trainee's Pilot DNA.
+    Trainees can only view their own Pilot DNA.
+    """
+
+    # ---------------------------------------------------------
+    # Validate pilot
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(User).where(
+            User.id == pilot_id,
+            User.role == UserRole.TRAINEE,
+        )
+    )
+
+    pilot = result.scalar_one_or_none()
+
+    if pilot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pilot/trainee not found.",
+        )
+
+    # ---------------------------------------------------------
+    # Authorization
+    # ---------------------------------------------------------
+
+    if current_user.role == UserRole.TRAINEE:
+        if pilot_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own Pilot DNA.",
+            )
+
+    # ---------------------------------------------------------
+    # Fetch assessment history
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(AssessmentRecord)
+        .where(
+            AssessmentRecord.pilot_id == pilot_id
+        )
+        .order_by(
+            AssessmentRecord.created_at.asc()
+        )
+    )
+
+    records = list(result.scalars().all())
+
+    # ---------------------------------------------------------
+    # Build Pilot DNA
+    # ---------------------------------------------------------
+
+    try:
+        return build_pilot_dna(records)
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
