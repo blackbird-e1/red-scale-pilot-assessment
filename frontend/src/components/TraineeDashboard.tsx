@@ -1,10 +1,32 @@
+import { useState } from 'react';
+import type { AssessmentHistoryItem } from '../types';
+import AssessmentHistory from './AssessmentHistory';
+import AssessmentDetail from './AssessmentDetail';
+import PilotDNA from './PilotDNA';
 interface TraineeDashboardProps {
   username: string;
+  pilotId: string;
 }
 
 export default function TraineeDashboard({
   username,
+  pilotId,
 }: TraineeDashboardProps) {
+
+  const [selectedAssessmentId, setSelectedAssessmentId] =
+    useState<string | null>(null);
+
+  const [assessments, setAssessments] = useState<AssessmentHistoryItem[]>([]);
+
+  if (selectedAssessmentId) {
+    return (
+      <AssessmentDetail
+        assessmentId={selectedAssessmentId}
+        onBack={() => setSelectedAssessmentId(null)}
+      />
+    );
+  }
+      
   return (
     <main className="flex-1">
       <div className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
@@ -24,38 +46,14 @@ export default function TraineeDashboard({
             </p>
           </div>
 
-          <div className="mt-10 rounded-2xl border border-[#2b2b2b] bg-[#161616] p-6 sm:p-8">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e10600]/30 bg-[#1a1212]">
-                <span className="h-2 w-2 rounded-full bg-[#e10600]" />
-              </div>
-
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e10600]">
-                  Assessment Status
-                </p>
-
-                <h2 className="mt-2 text-lg font-semibold text-white">
-                  No assessment available
-                </h2>
-
-                <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-                  Your instructor has not assigned an assessment to your
-                  account yet. Once an assessment is available, your flight
-                  performance and AI debrief will appear here.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-[#252525] bg-[#161616] p-5">
               <p className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
                 Assessments
               </p>
 
               <p className="mt-3 text-2xl font-semibold text-white">
-                0
+                {assessments.length}
               </p>
 
               <p className="mt-1 text-xs text-gray-600">
@@ -65,31 +63,74 @@ export default function TraineeDashboard({
 
             <div className="rounded-2xl border border-[#252525] bg-[#161616] p-5">
               <p className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
-                Risk
+                Latest Risk
               </p>
 
-              <p className="mt-3 text-2xl font-semibold text-gray-500">
-                —
+              <p className="mt-3 text-2xl font-semibold text-white">
+                {assessments.length > 0
+                  ? assessments[0].risk_score.toFixed(2)
+                  : '—'}
               </p>
 
               <p className="mt-1 text-xs text-gray-600">
-                Latest risk rating
+                Latest assessment risk
               </p>
             </div>
 
             <div className="rounded-2xl border border-[#252525] bg-[#161616] p-5">
               <p className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
-                Debrief
+                Latest Rating
               </p>
 
-              <p className="mt-3 text-2xl font-semibold text-gray-500">
-                —
+              <p className="mt-3 text-2xl font-semibold text-white">
+                {assessments.length > 0
+                  ? assessments[0].overall_rating
+                  : '—'}
               </p>
 
               <p className="mt-1 text-xs text-gray-600">
-                Latest instructor debrief
+                Latest assessment rating
               </p>
             </div>
+          </div>
+
+          {assessments.length > 0 && (
+            <div className="mt-10 rounded-2xl border border-[#2b2b2b] bg-[#161616] p-6 sm:p-8">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e10600]/30 bg-[#1a1212]">
+                  <span className="h-2 w-2 rounded-full bg-[#e10600]" />
+                </div>
+
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e10600]">
+                    Assessment Status
+                  </p>
+
+                  <h2 className="mt-2 text-lg font-semibold text-white">
+                    Your flight assessments are available
+                  </h2>
+
+                  <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
+                    You have completed {assessments.length} flight assessment
+                    {assessments.length === 1 ? '' : 's'}. Review your history
+                    and Pilot DNA below.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="mt-8">
+            <AssessmentHistory
+              pilotId={pilotId}
+              onSelectAssessment={(assessmentId) => {
+                setSelectedAssessmentId(assessmentId);
+              }}
+              onHistoryLoaded={setAssessments}
+            />
+          </div>
+
+          <div className="mt-8">
+            <PilotDNA pilotId={pilotId} />
           </div>
         </section>
 

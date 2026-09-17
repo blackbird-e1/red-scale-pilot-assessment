@@ -14,3 +14,9 @@ class LoginResponse(BaseModel):
     email: str
     name: str
     role: UserRole
+
+
+class TraineeResponse(BaseModel):
+    id: str
+    name: str
+    email: str

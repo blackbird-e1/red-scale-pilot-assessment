@@ -7,6 +7,7 @@ from app.config import settings
 from app.models.base import Base
 from app.models.user import User
 
+from app.models.assessment_record import AssessmentRecord
 
 config = context.config
 

@@ -121,3 +121,65 @@ export interface StreamChunk {
   tool_name?: string | null;
   conversation_id?: string | null;
 }
+
+export interface AssessmentHistoryItem {
+  id: string;
+  created_at: string;
+
+  source_filename: string;
+
+  benchmark_id: string;
+  benchmark_version: string;
+
+  risk_score: number;
+  overall_rating: OverallRating;
+
+  duration_sec: number;
+  max_speed_knots: number;
+  max_bank_angle_deg: number;
+  max_descent_rate_fpm: number;
+}
+
+export interface AssessmentDetail {
+  id: string;
+  pilot_id: string;
+  created_by: string;
+  created_at: string;
+
+  source_filename: string;
+
+  benchmark_id: string;
+  benchmark_version: string;
+
+  features: FlightFeatures;
+
+  risk_score: number;
+  overall_rating: OverallRating;
+
+  benchmark_results: BenchmarkResult[];
+  violations: RuleViolation[];
+  visual_observations: VisualObservation[];
+  telemetry: TelemetryPoint[];
+}
+
+export interface RecurringViolation {
+  rule_id: string;
+  rule_name: string;
+  occurrences: number;
+  total_assessments: number;
+  severity: ViolationSeverity;
+  percentage: number;
+}
+
+export interface PilotDNA {
+  pilot_id: string;
+  assessment_count: number;
+  latest_risk: number | null;
+  average_risk: number | null;
+  risk_trend: string;
+  strengths: string[];
+  weaknesses: string[];
+  recurring_violations: RecurringViolation[];
+  latest_assessment_date: string | null;
+  risk_history: number[];
+}

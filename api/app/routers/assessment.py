@@ -1,14 +1,25 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.dependencies.auth import require_trainer
+from app.database import get_db
+from app.dependencies.auth import (
+    get_current_user,
+    require_trainer,
+)
 from app.models.assessment import Assessment
-from app.models.user import User
+from app.models.assessment_record import AssessmentRecord
+from app.models.user import User, UserRole
 from app.services.assessment_service import assess_flight
 from app.services.vision_service import analyze_image
-
+from app.models.assessment_history import AssessmentHistoryItem
+from app.models.assessment_detail import AssessmentDetail
+from app.models.pilot_dna import PilotDNA
+from app.services.pilot_dna import build_pilot_dna
 
 router = APIRouter(
     prefix="/assessment",
@@ -24,6 +35,9 @@ ALLOWED_IMAGE_EXTENSIONS = {
 
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
 
+BENCHMARK_ID = "aviation"
+BENCHMARK_VERSION = "1"
+
 
 @router.post(
     "",
@@ -33,14 +47,40 @@ MAX_IMAGE_SIZE = 10 * 1024 * 1024
 async def create_assessment(
     file: UploadFile = File(...),
     image: UploadFile | None = File(None),
+    pilot_id: UUID = Form(...),
     current_user: User = Depends(require_trainer),
+    db: AsyncSession = Depends(get_db),
 ) -> Assessment:
     """
     Assess an uploaded flight-data CSV file with optional
-    visual evidence.
+    visual evidence and persist the resulting assessment.
 
     Only authenticated trainers can create assessments.
     """
+
+    # ---------------------------------------------------------
+    # Validate pilot
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(User).where(
+            User.id == pilot_id,
+            User.role == UserRole.TRAINEE,
+        )
+    )
+
+    pilot = result.scalar_one_or_none()
+
+    if pilot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pilot/trainee not found.",
+        )
+
+
+    # ---------------------------------------------------------
+    # Validate CSV
+    # ---------------------------------------------------------
 
     if not file.filename:
         raise HTTPException(
@@ -53,6 +93,10 @@ async def create_assessment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only CSV files are supported.",
         )
+
+    # ---------------------------------------------------------
+    # Validate image
+    # ---------------------------------------------------------
 
     if image and image.filename:
         image_suffix = Path(image.filename).suffix.lower()
@@ -111,19 +155,76 @@ async def create_assessment(
             )
 
         # ---------------------------------------------------------
-        # Run assessment
+        # Run existing assessment pipeline
         # ---------------------------------------------------------
 
-        return assess_flight(
+        assessment = assess_flight(
             csv_temp_path,
             visual_observations=visual_observations,
         )
 
+        # ---------------------------------------------------------
+        # Persist assessment
+        # ---------------------------------------------------------
+
+        record = AssessmentRecord(
+            pilot_id=pilot_id,
+            created_by=current_user.id,
+            source_filename=file.filename,
+            benchmark_id=BENCHMARK_ID,
+            benchmark_version=BENCHMARK_VERSION,
+
+            duration_sec=assessment.features.duration_sec,
+            max_altitude_ft=assessment.features.max_altitude_ft,
+            min_altitude_ft=assessment.features.min_altitude_ft,
+            max_speed_knots=assessment.features.max_speed_knots,
+            avg_speed_knots=assessment.features.avg_speed_knots,
+            max_pitch_deg=assessment.features.max_pitch_deg,
+            min_pitch_deg=assessment.features.min_pitch_deg,
+            max_roll_deg=assessment.features.max_roll_deg,
+            min_roll_deg=assessment.features.min_roll_deg,
+            max_bank_angle_deg=assessment.features.max_bank_angle_deg,
+            max_climb_rate_fpm=assessment.features.max_climb_rate_fpm,
+            max_descent_rate_fpm=assessment.features.max_descent_rate_fpm,
+            avg_throttle_percent=assessment.features.avg_throttle_percent,
+
+            risk_score=assessment.risk_score,
+            overall_rating=assessment.overall_rating,
+
+            benchmark_results=[
+                item.model_dump(mode="json")
+                for item in assessment.benchmark_results
+            ],
+
+            violations=[
+                item.model_dump(mode="json")
+                for item in assessment.violations
+            ],
+
+            visual_observations=assessment.visual_observations,
+
+            telemetry=[
+                item.model_dump(mode="json")
+                for item in assessment.telemetry
+            ],
+        )
+
+        db.add(record)
+        await db.commit()
+
+        return assessment
+
     except ValueError as exc:
+        await db.rollback()
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
         ) from exc
+
+    except Exception:
+        await db.rollback()
+        raise
 
     finally:
         await file.close()
@@ -136,3 +237,223 @@ async def create_assessment(
 
         if image_temp_path and image_temp_path.exists():
             image_temp_path.unlink()
+
+@router.get(
+    "/pilot/{pilot_id}",
+    response_model=list[AssessmentHistoryItem],
+    status_code=status.HTTP_200_OK,
+)
+async def get_pilot_assessment_history(
+    pilot_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[AssessmentHistoryItem]:
+    """
+    Return assessment history for a trainee.
+
+    Trainers can view trainee history.
+    Trainees can only view their own history.
+    """
+
+    # ---------------------------------------------------------
+    # Validate pilot
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(User).where(
+            User.id == pilot_id,
+            User.role == UserRole.TRAINEE,
+        )
+    )
+
+    pilot = result.scalar_one_or_none()
+
+    if pilot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pilot/trainee not found.",
+        )
+
+    if current_user.role == UserRole.TRAINEE:
+        if pilot_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own assessment history.",
+            )
+
+    # ---------------------------------------------------------
+    # Fetch assessment history
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(AssessmentRecord)
+        .where(AssessmentRecord.pilot_id == pilot_id)
+        .order_by(AssessmentRecord.created_at.desc())
+    )
+
+    records = result.scalars().all()
+
+    return [
+        AssessmentHistoryItem(
+            id=record.id,
+            created_at=record.created_at,
+            source_filename=record.source_filename,
+            benchmark_id=record.benchmark_id,
+            benchmark_version=record.benchmark_version,
+            risk_score=record.risk_score,
+            overall_rating=record.overall_rating,
+            duration_sec=record.duration_sec,
+            max_speed_knots=record.max_speed_knots,
+            max_bank_angle_deg=record.max_bank_angle_deg,
+            max_descent_rate_fpm=record.max_descent_rate_fpm,
+        )
+        for record in records
+    ]
+
+
+@router.get(
+    "/{assessment_id}",
+    response_model=AssessmentDetail,
+    status_code=status.HTTP_200_OK,
+)
+async def get_assessment(
+    assessment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AssessmentDetail:
+    """
+    Return the complete persisted assessment.
+
+    Trainers can view assessments.
+    Trainees can only view their own assessment.
+    """
+
+    result = await db.execute(
+        select(AssessmentRecord).where(
+            AssessmentRecord.id == assessment_id
+        )
+    )
+
+    record = result.scalar_one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assessment not found.",
+        )
+
+    if current_user.role == UserRole.TRAINEE:
+        if record.pilot_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own assessment.",
+            )
+
+    features = {
+        "duration_sec": record.duration_sec,
+        "max_altitude_ft": record.max_altitude_ft,
+        "min_altitude_ft": record.min_altitude_ft,
+        "max_speed_knots": record.max_speed_knots,
+        "avg_speed_knots": record.avg_speed_knots,
+        "max_pitch_deg": record.max_pitch_deg,
+        "min_pitch_deg": record.min_pitch_deg,
+        "max_roll_deg": record.max_roll_deg,
+        "min_roll_deg": record.min_roll_deg,
+        "max_bank_angle_deg": record.max_bank_angle_deg,
+        "max_climb_rate_fpm": record.max_climb_rate_fpm,
+        "max_descent_rate_fpm": record.max_descent_rate_fpm,
+        "avg_throttle_percent": record.avg_throttle_percent,
+    }
+
+    return AssessmentDetail(
+        id=record.id,
+        pilot_id=record.pilot_id,
+        created_by=record.created_by,
+        created_at=record.created_at,
+        source_filename=record.source_filename,
+        benchmark_id=record.benchmark_id,
+        benchmark_version=record.benchmark_version,
+        features=features,
+        risk_score=record.risk_score,
+        overall_rating=record.overall_rating,
+        benchmark_results=record.benchmark_results,
+        violations=record.violations,
+        visual_observations=record.visual_observations,
+        telemetry=record.telemetry,
+    )
+
+@router.get(
+    "/pilot/{pilot_id}/dna",
+    response_model=PilotDNA,
+    status_code=status.HTTP_200_OK,
+)
+async def get_pilot_dna(
+    pilot_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PilotDNA:
+    """
+    Return the longitudinal Pilot DNA for a trainee.
+
+    Trainers can view any trainee's Pilot DNA.
+    Trainees can only view their own Pilot DNA.
+    """
+
+    # ---------------------------------------------------------
+    # Validate pilot
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(User).where(
+            User.id == pilot_id,
+            User.role == UserRole.TRAINEE,
+        )
+    )
+
+    pilot = result.scalar_one_or_none()
+
+    if pilot is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Pilot/trainee not found.",
+        )
+
+    # ---------------------------------------------------------
+    # Authorization
+    # ---------------------------------------------------------
+
+    if current_user.role == UserRole.TRAINEE:
+        if pilot_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own Pilot DNA.",
+            )
+
+    # ---------------------------------------------------------
+    # Fetch assessment history
+    # ---------------------------------------------------------
+
+    result = await db.execute(
+        select(AssessmentRecord)
+        .where(
+            AssessmentRecord.pilot_id == pilot_id
+        )
+        .order_by(
+            AssessmentRecord.created_at.asc()
+        )
+    )
+
+    records = list(result.scalars().all())
+
+    # ---------------------------------------------------------
+    # Build Pilot DNA
+    # ---------------------------------------------------------
+
+    try:
+        return build_pilot_dna(records)
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc

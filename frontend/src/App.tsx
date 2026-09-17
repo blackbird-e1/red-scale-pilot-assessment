@@ -7,11 +7,14 @@ import ChatAssistant from './components/ChatAssistant';
 import Login from './components/Login';
 import {
   getCurrentUser,
+  getTrainees,
   type CurrentUser,
   type LoginResponse,
+  type Trainee,
 } from './api/auth';
 import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
+import PilotDNA from './components/PilotDNA';
 
 const CAPABILITIES = [
   {
@@ -82,8 +85,9 @@ function WorkflowNode({
 export default function App() {
     const [auth, setAuth] = useState<CurrentUser | null>(null);
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-
     const [assessment, setAssessment] = useState<Assessment | null>(null);
+    const [trainees, setTrainees] = useState<Trainee[]>([]);
+    const [selectedTraineeId, setSelectedTraineeId] = useState('');
     const [fileName, setFileName] = useState('');
 
     useEffect(() => {
@@ -131,6 +135,24 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!auth || auth.role !== 'trainer') {
+      setTrainees([]);
+      return;
+    }
+
+    async function loadTrainees() {
+      try {
+        const result = await getTrainees();
+        setTrainees(result);
+      } catch (err) {
+        console.error('Unable to load trainees:', err);
+      }
+    }
+
+    loadTrainees();
+  }, [auth]);
+
 
   function handleAssessment(result: Assessment, name: string) {
     setAssessment(result);
@@ -138,8 +160,9 @@ export default function App() {
   }
 
   function handleNewAssessment() {
-    setAssessment(null);
-    setFileName('');
+      setAssessment(null);
+      setSelectedTraineeId('');
+      setFileName('');
   }
 
   function handleLogin(result: LoginResponse) {
@@ -161,6 +184,7 @@ export default function App() {
     localStorage.removeItem('red-scale-auth');
     setAuth(null);
     setAssessment(null);
+    setSelectedTraineeId('');
     setFileName('');
   }
 
@@ -193,7 +217,10 @@ export default function App() {
           onLogout={handleLogout}
         />
 
-        <TraineeDashboard username={auth.name} />
+        <TraineeDashboard
+          username={auth.name}
+          pilotId={auth.id}
+        />
 
         <ChatAssistant />
       </div>
@@ -357,7 +384,11 @@ export default function App() {
                   </p>
                 </div>
 
-                <FDRUpload onAssessment={handleAssessment} />
+                <FDRUpload
+                  onAssessment={handleAssessment}
+                  trainees={trainees}
+                  onTraineeChange={setSelectedTraineeId}
+                />
 
                 <div className="mt-5 flex items-center gap-2 text-xs text-gray-600">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500/70" />
@@ -400,6 +431,12 @@ export default function App() {
                 </div>
               </div>
             </section>
+
+            {selectedTraineeId && (
+              <section className="mt-6">
+                <PilotDNA pilotId={selectedTraineeId} />
+              </section>
+            )}
 
             {/* Supported inputs */}
             <section className="mt-6">

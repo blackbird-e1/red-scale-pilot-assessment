@@ -19,6 +19,12 @@ export interface CurrentUser {
   role: UserRole;
 }
 
+export interface Trainee {
+  id: string;
+  name: string;
+  email: string;
+}
+
 const API_BASE_URL = '/api/v1';
 
 export async function loginWithGoogle(
@@ -73,4 +79,26 @@ export async function getCurrentUser(): Promise<CurrentUser> {
   }
 
   return response.json() as Promise<CurrentUser>;
+}
+
+export async function getTrainees(): Promise<Trainee[]> {
+  const response = await authenticatedFetch('/auth/trainees');
+
+  if (!response.ok) {
+    let message = `Unable to load trainees (${response.status})`;
+
+    try {
+      const data = await response.json();
+
+      if (typeof data.detail === 'string') {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+
+  return response.json() as Promise<Trainee[]>;
 }

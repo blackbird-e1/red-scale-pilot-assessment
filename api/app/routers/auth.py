@@ -5,12 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies.auth import get_current_user
-from app.models.auth import GoogleLoginRequest, LoginResponse
-from app.models.user import User
+from app.models.auth import (
+    GoogleLoginRequest,
+    LoginResponse,
+    TraineeResponse,
+)
+from app.models.user import User, UserRole
 from app.services.auth_service import get_or_create_google_user
 from app.services.token_service import create_access_token
-
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.dependencies.auth import get_current_user, require_trainer
 
 router = APIRouter(
     prefix="/auth",
@@ -86,3 +91,29 @@ async def get_me(
         "avatar_url": current_user.avatar_url,
         "role": current_user.role.value,
     }
+
+@router.get(
+    "/trainees",
+    response_model=list[TraineeResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_trainees(
+    current_user: User = Depends(require_trainer),
+    db: AsyncSession = Depends(get_db),
+) -> list[TraineeResponse]:
+    result = await db.execute(
+        select(User)
+        .where(User.role == UserRole.TRAINEE)
+        .order_by(User.name)
+    )
+
+    trainees = result.scalars().all()
+
+    return [
+        TraineeResponse(
+            id=str(trainee.id),
+            name=trainee.name,
+            email=trainee.email,
+        )
+        for trainee in trainees
+    ]
