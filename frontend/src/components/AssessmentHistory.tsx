@@ -5,6 +5,7 @@ import type { AssessmentHistoryItem } from '../types';
 interface AssessmentHistoryProps {
   pilotId: string;
   onSelectAssessment: (assessmentId: string) => void;
+  onHistoryLoaded?: (assessments: AssessmentHistoryItem[]) => void;
 }
 
 function formatDuration(seconds: number) {
@@ -25,6 +26,7 @@ function formatDate(value: string) {
 export default function AssessmentHistory({
   pilotId,
   onSelectAssessment,
+  onHistoryLoaded,
 }: AssessmentHistoryProps) {
   const [assessments, setAssessments] = useState<AssessmentHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,7 @@ export default function AssessmentHistory({
       try {
         const history = await getPilotAssessmentHistory(pilotId);
         setAssessments(history);
+        onHistoryLoaded?.(history);
       } catch (err) {
         setError(
           err instanceof Error
@@ -50,7 +53,7 @@ export default function AssessmentHistory({
     }
 
     loadHistory();
-  }, [pilotId]);
+  }, [pilotId, onHistoryLoaded]);
 
   if (loading) {
     return (

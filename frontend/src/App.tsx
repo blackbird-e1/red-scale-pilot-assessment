@@ -14,6 +14,7 @@ import {
 } from './api/auth';
 import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
+import PilotDNA from './components/PilotDNA';
 
 const CAPABILITIES = [
   {
@@ -86,6 +87,7 @@ export default function App() {
     const [isCheckingAuth, setIsCheckingAuth] = useState(true);
     const [assessment, setAssessment] = useState<Assessment | null>(null);
     const [trainees, setTrainees] = useState<Trainee[]>([]);
+    const [selectedTraineeId, setSelectedTraineeId] = useState('');
     const [fileName, setFileName] = useState('');
 
     useEffect(() => {
@@ -158,8 +160,9 @@ export default function App() {
   }
 
   function handleNewAssessment() {
-    setAssessment(null);
-    setFileName('');
+      setAssessment(null);
+      setSelectedTraineeId('');
+      setFileName('');
   }
 
   function handleLogin(result: LoginResponse) {
@@ -181,6 +184,7 @@ export default function App() {
     localStorage.removeItem('red-scale-auth');
     setAuth(null);
     setAssessment(null);
+    setSelectedTraineeId('');
     setFileName('');
   }
 
@@ -383,6 +387,7 @@ export default function App() {
                 <FDRUpload
                   onAssessment={handleAssessment}
                   trainees={trainees}
+                  onTraineeChange={setSelectedTraineeId}
                 />
 
                 <div className="mt-5 flex items-center gap-2 text-xs text-gray-600">
@@ -426,6 +431,12 @@ export default function App() {
                 </div>
               </div>
             </section>
+
+            {selectedTraineeId && (
+              <section className="mt-6">
+                <PilotDNA pilotId={selectedTraineeId} />
+              </section>
+            )}
 
             {/* Supported inputs */}
             <section className="mt-6">

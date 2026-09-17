@@ -10,12 +10,14 @@ import type { Assessment } from '../types';
 interface FDRUploadProps {
   onAssessment: (assessment: Assessment, fileName: string) => void;
   trainees: Trainee[];
+  onTraineeChange: (traineeId: string) => void;
   disabled?: boolean;
 }
 
 export default function FDRUpload({
   onAssessment,
   trainees,
+  onTraineeChange,
   disabled = false,
 }: FDRUploadProps) {
   const csvInputRef = useRef<HTMLInputElement>(null);
@@ -185,6 +187,7 @@ export default function FDRUpload({
           value={selectedTraineeId}
           onChange={(event) => {
             setSelectedTraineeId(event.target.value);
+            onTraineeChange(event.target.value);
             setError(null);
           }}
           disabled={busy}

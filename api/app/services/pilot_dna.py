@@ -123,6 +123,36 @@ def _build_recurring_violations(
 
     return recurring
 
+def _build_strengths(
+    risk_trend: str,
+    recurring_violations: list[RecurringViolation],
+) -> list[str]:
+    strengths = []
+
+    if risk_trend == "improving":
+        strengths.append(
+            "Overall risk performance is improving."
+        )
+    elif risk_trend == "stable":
+        strengths.append(
+            "Risk performance is consistent."
+        )
+
+    if not recurring_violations:
+        strengths.append(
+            "No recurring rule violations identified."
+        )
+
+    return strengths
+
+
+def _build_weaknesses(
+    recurring_violations: list[RecurringViolation],
+) -> list[str]:
+    return [
+        violation.rule_name
+        for violation in recurring_violations
+    ]
 
 def build_pilot_dna(
     records: list[AssessmentRecord],
@@ -144,19 +174,32 @@ def build_pilot_dna(
 
     latest = ordered[-1]
 
+    risk_trend = _calculate_risk_trend(ordered)
+    recurring_violations = _build_recurring_violations(
+        ordered
+    )
+
+    strengths = _build_strengths(
+        risk_trend,
+        recurring_violations,
+    )
+
+    weaknesses = _build_weaknesses(
+        recurring_violations,
+    )
+
     return PilotDNA(
         pilot_id=latest.pilot_id,
         assessment_count=len(ordered),
-        latest_risk=latest.risk_score,
+        latest_risk=round(latest.risk_score, 2),
         average_risk=round(
             sum(risk_scores) / len(risk_scores),
             2,
         ),
-        risk_trend=_calculate_risk_trend(ordered),
-        strengths=[],
-        weaknesses=[],
-        recurring_violations=_build_recurring_violations(
-            ordered
-        ),
+        risk_trend=risk_trend,
+        risk_history=risk_scores,
+        strengths=strengths,
+        weaknesses=weaknesses,
+        recurring_violations=recurring_violations,
         latest_assessment_date=latest.created_at,
-    )
+)

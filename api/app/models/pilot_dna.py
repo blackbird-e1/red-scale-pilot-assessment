@@ -21,7 +21,7 @@ class PilotDNA(BaseModel):
     latest_risk: float | None = None
     average_risk: float | None = None
     risk_trend: str
-
+    risk_history: list[float]
     strengths: list[str]
     weaknesses: list[str]
 

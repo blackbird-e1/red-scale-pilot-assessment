@@ -181,13 +181,5 @@ export interface PilotDNA {
   weaknesses: string[];
   recurring_violations: RecurringViolation[];
   latest_assessment_date: string | null;
-}
-
-export interface RecurringViolation {
-  rule_id: string;
-  rule_name: string;
-  occurrences: number;
-  total_assessments: number;
-  severity: ViolationSeverity;
-  percentage: number;
+  risk_history: number[];
 }
