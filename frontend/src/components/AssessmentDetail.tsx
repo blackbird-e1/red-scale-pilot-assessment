@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getAssessment } from '../api/assessment';
 import type { AssessmentDetail as AssessmentDetailType } from '../types';
 import AssessmentResults from './AssessmentResults';
-
+import FlightReplay from './replay/FlightReplay';
 interface AssessmentDetailProps {
   assessmentId: string;
   onBack: () => void;
@@ -180,6 +180,8 @@ export default function AssessmentDetail({
           assessment={assessment}
           fileName={assessment.source_filename}
         />
+
+        <FlightReplay assessmentId={assessment.id} />
       </div>
     </main>
   );
