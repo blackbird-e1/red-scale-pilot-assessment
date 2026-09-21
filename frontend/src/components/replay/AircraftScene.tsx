@@ -39,31 +39,51 @@ function AircraftModel({
       {/* Fuselage */}
       <mesh>
         <boxGeometry args={[0.7, 0.35, 3]} />
-        <meshStandardMaterial />
+        <meshStandardMaterial
+          color="#d8d8d8"
+          metalness={0.35}
+          roughness={0.45}
+        />
       </mesh>
 
       {/* Nose */}
       <mesh position={[0, 0, -1.8]}>
         <coneGeometry args={[0.35, 0.9, 16]} />
-        <meshStandardMaterial />
+        <meshStandardMaterial
+          color="#e10600"
+          metalness={0.25}
+          roughness={0.5}
+        />
       </mesh>
 
       {/* Main wings */}
       <mesh>
         <boxGeometry args={[4, 0.12, 0.8]} />
-        <meshStandardMaterial />
+        <meshStandardMaterial
+          color="#d8d8d8"
+          metalness={0.35}
+          roughness={0.45}
+        />
       </mesh>
 
       {/* Tail wing */}
       <mesh position={[0, 0, 1.15]}>
         <boxGeometry args={[1.6, 0.1, 0.45]} />
-        <meshStandardMaterial />
+        <meshStandardMaterial
+          color="#d8d8d8"
+          metalness={0.35}
+          roughness={0.45}
+        />
       </mesh>
 
       {/* Vertical stabilizer */}
       <mesh position={[0, 0.45, 1.1]}>
         <boxGeometry args={[0.12, 0.9, 0.45]} />
-        <meshStandardMaterial />
+        <meshStandardMaterial
+          color="#d8d8d8"
+          metalness={0.35}
+          roughness={0.45}
+        />
       </mesh>
     </group>
   );
@@ -88,6 +108,32 @@ function getPathX(
 
   return (
     (timestamp / duration) * 20 - 10
+  );
+}
+
+function getTelemetryAtTime(
+  telemetry: ReplayTelemetryPoint[],
+  timestamp: number,
+): ReplayTelemetryPoint | null {
+  if (telemetry.length === 0) {
+    return null;
+  }
+
+  return telemetry.reduce(
+    (closest, point) => {
+      const closestDistance = Math.abs(
+        closest.timestamp_sec - timestamp,
+      );
+
+      const pointDistance = Math.abs(
+        point.timestamp_sec - timestamp,
+      );
+
+      return pointDistance < closestDistance
+        ? point
+        : closest;
+    },
+    telemetry[0],
   );
 }
 
@@ -174,6 +220,14 @@ export default function AircraftScene({
           fov: 45,
         }}
       >
+
+        <color attach="background" args={["#080b10"]} />
+
+        <fog
+          attach="fog"
+          args={["#080b10", 12, 35]}
+        />
+
         <ambientLight intensity={1.5} />
 
         <directionalLight
@@ -186,9 +240,17 @@ export default function AircraftScene({
         />
 
         <gridHelper
-          args={[20, 20]}
+          args={[40, 40]}
           position={[0, -0.01, 0]}
         />
+
+        <mesh
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -0.03, 0]}
+        >
+          <planeGeometry args={[60, 60]} />
+          <meshStandardMaterial color="#080808" />
+        </mesh>
 
         {/* Complete flight path */}
         <Line
@@ -197,24 +259,25 @@ export default function AircraftScene({
         />
 
         {events.map((event, index) => {
-        const eventPosition: [
-            number,
-            number,
-            number,
-        ] = [
-            getPathX(
+          const eventTelemetry = getTelemetryAtTime(
+            telemetry,
             event.timestamp_sec,
-            duration,
+          );
+
+          const eventPosition: [
+            number,
+            number,
+            number,
+          ] = [
+            getPathX(
+              event.timestamp_sec,
+              duration,
             ),
             normalizeAltitude(
-            telemetry.find(
-                (point) =>
-                point.timestamp_sec ===
-                event.timestamp_sec,
-            )?.altitude_ft ?? 0,
+              eventTelemetry?.altitude_ft ?? 0,
             ) + 0.4,
             0,
-        ];
+          ];
 
         const isActive =
             Math.abs(
@@ -246,7 +309,6 @@ export default function AircraftScene({
           pitch={currentTelemetry.pitch_deg}
           roll={currentTelemetry.roll_deg}
         />
-
       </Canvas>
     </div>
   );
