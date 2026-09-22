@@ -3,6 +3,8 @@ import { getReplay, type ReplayDataset } from '../../api/replay';
 import FlightProfile from './FlightProfile';
 import AttitudeIndicator from './AttitudeIndicator';
 import AircraftScene from "./AircraftScene";
+import IncidentDebrief from './IncidentDebrief';
+import DebriefSummary from './DebriefSummary';
 
 interface FlightReplayProps {
   assessmentId: string;
@@ -60,6 +62,201 @@ function interpolate(
   return valueA + (valueB - valueA) * factor;
 }
 
+function getTelemetryAtTime(
+  telemetry: ReplayDataset["telemetry"],
+  timestamp: number,
+): ReplayDataset["telemetry"][number] | null {
+  if (telemetry.length === 0) {
+    return null;
+  }
+
+  if (timestamp <= telemetry[0].timestamp_sec) {
+    return telemetry[0];
+  }
+
+  const last = telemetry[telemetry.length - 1];
+
+  if (timestamp >= last.timestamp_sec) {
+    return last;
+  }
+
+  for (let index = 0; index < telemetry.length - 1; index += 1) {
+    const current = telemetry[index];
+    const next = telemetry[index + 1];
+
+    if (
+      timestamp >= current.timestamp_sec &&
+      timestamp <= next.timestamp_sec
+    ) {
+      const duration =
+        next.timestamp_sec - current.timestamp_sec;
+
+      const factor =
+        duration === 0
+          ? 0
+          : (timestamp - current.timestamp_sec) /
+            duration;
+
+      return {
+        ...current,
+        timestamp_sec: timestamp,
+
+        altitude_ft: interpolate(
+          current.altitude_ft,
+          next.altitude_ft,
+          factor,
+        ),
+
+        indicated_airspeed_knots: interpolate(
+          current.indicated_airspeed_knots,
+          next.indicated_airspeed_knots,
+          factor,
+        ),
+
+        pitch_deg: interpolate(
+          current.pitch_deg,
+          next.pitch_deg,
+          factor,
+        ),
+
+        roll_deg: interpolate(
+          current.roll_deg,
+          next.roll_deg,
+          factor,
+        ),
+
+        vertical_speed_fpm: interpolate(
+          current.vertical_speed_fpm,
+          next.vertical_speed_fpm,
+          factor,
+        ),
+
+        bank_angle_deg: interpolate(
+          current.bank_angle_deg,
+          next.bank_angle_deg,
+          factor,
+        ),
+
+        throttle_percent: interpolate(
+          current.throttle_percent,
+          next.throttle_percent,
+          factor,
+        ),
+      };
+    }
+  }
+
+  return last;
+}
+
+function getPrimaryDeviation(
+  eventLabel: string,
+  context: {
+    before: ReplayDataset["telemetry"][number];
+    incident: ReplayDataset["telemetry"][number];
+    after: ReplayDataset["telemetry"][number];
+  },
+) {
+  const label = eventLabel.toLowerCase();
+
+  if (label.includes('bank')) {
+    return {
+      metric: 'Bank',
+      unit: '°',
+      before: context.before.bank_angle_deg,
+      incident: context.incident.bank_angle_deg,
+      after: context.after.bank_angle_deg,
+    };
+  }
+
+  if (label.includes('speed')) {
+    return {
+      metric: 'Airspeed',
+      unit: 'kt',
+      before: context.before.indicated_airspeed_knots,
+      incident: context.incident.indicated_airspeed_knots,
+      after: context.after.indicated_airspeed_knots,
+    };
+  }
+
+  if (label.includes('pitch')) {
+    return {
+      metric: 'Pitch',
+      unit: '°',
+      before: context.before.pitch_deg,
+      incident: context.incident.pitch_deg,
+      after: context.after.pitch_deg,
+    };
+  }
+
+  if (label.includes('altitude')) {
+    return {
+      metric: 'Altitude',
+      unit: 'ft',
+      before: context.before.altitude_ft,
+      incident: context.incident.altitude_ft,
+      after: context.after.altitude_ft,
+    };
+  }
+
+  return null;
+}
+
+function getPeakDeviation(
+  eventLabel: string,
+  telemetry: ReplayDataset["telemetry"],
+  eventTimestamp: number,
+  duration: number,
+) {
+  const window = getIncidentWindow(eventTimestamp, duration);
+
+  const samples = telemetry.filter(
+    (point) =>
+      point.timestamp_sec >= window.start &&
+      point.timestamp_sec <= window.end,
+  );
+
+  if (samples.length === 0) {
+    return null;
+  }
+
+  const label = eventLabel.toLowerCase();
+
+  if (label.includes('bank')) {
+    return samples.reduce((peak, point) =>
+      Math.abs(point.bank_angle_deg) > Math.abs(peak.bank_angle_deg)
+        ? point
+        : peak,
+    );
+  }
+
+  if (label.includes('speed')) {
+    return samples.reduce((peak, point) =>
+      point.indicated_airspeed_knots > peak.indicated_airspeed_knots
+        ? point
+        : peak,
+    );
+  }
+
+  if (label.includes('pitch')) {
+    return samples.reduce((peak, point) =>
+      Math.abs(point.pitch_deg) > Math.abs(peak.pitch_deg)
+        ? point
+        : peak,
+    );
+  }
+
+  if (label.includes('altitude')) {
+    return samples.reduce((peak, point) =>
+      Math.abs(point.altitude_ft) > Math.abs(peak.altitude_ft)
+        ? point
+        : peak,
+    );
+  }
+
+  return null;
+}
+
 export default function FlightReplay({
   assessmentId,
 }: FlightReplayProps) {
@@ -81,6 +278,35 @@ export default function FlightReplay({
   const [playbackSpeed, setPlaybackSpeed] =
     useState(1);
 
+  const [trainerNotes, setTrainerNotes] = useState({
+    strengths: '',
+    improvement: '',
+    trainingFocus: '',
+  });
+
+  const [showDebriefSummary, setShowDebriefSummary] =
+    useState(false);
+
+  const [replayComplete, setReplayComplete] = useState(false);
+  const selectEvent = (
+    event: ReplayDataset["events"][number],
+  ) => {
+    setActiveEvent(event);
+    setIncidentReplay(false);
+    setIncidentEndTime(null);
+    setCurrentTime(event.timestamp_sec);
+    setPlaying(false);
+    setReplayComplete(false);
+
+    setTrainerNotes({
+      strengths: '',
+      improvement: '',
+      trainingFocus: '',
+    });
+
+    setShowDebriefSummary(false);
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -94,6 +320,13 @@ export default function FlightReplay({
         if (!cancelled) {
           setReplay(data);
           setCurrentTime(0);
+          setReplayComplete(false);
+          setTrainerNotes({
+            strengths: '',
+            improvement: '',
+            trainingFocus: '',
+          });
+          setShowDebriefSummary(false);
         }
       } catch (err) {
         if (!cancelled) {
@@ -147,6 +380,7 @@ export default function FlightReplay({
 
           if (incidentReplay) {
             setIncidentReplay(false);
+            setReplayComplete(true);
           }
 
           return endTime;
@@ -168,89 +402,14 @@ export default function FlightReplay({
   ]);
 
   const currentTelemetry = useMemo(() => {
-    if (!replay || replay.telemetry.length === 0) {
+    if (!replay) {
       return null;
     }
 
-    const telemetry = replay.telemetry;
-
-    if (currentTime <= telemetry[0].timestamp_sec) {
-      return telemetry[0];
-    }
-
-    const last = telemetry[telemetry.length - 1];
-
-    if (currentTime >= last.timestamp_sec) {
-      return last;
-    }
-
-    for (let index = 0; index < telemetry.length - 1; index += 1) {
-      const current = telemetry[index];
-      const next = telemetry[index + 1];
-
-      if (
-        currentTime >= current.timestamp_sec &&
-        currentTime <= next.timestamp_sec
-      ) {
-        const duration =
-          next.timestamp_sec - current.timestamp_sec;
-
-        const factor =
-          duration === 0
-            ? 0
-            : (currentTime - current.timestamp_sec) /
-              duration;
-
-        return {
-          ...current,
-          timestamp_sec: currentTime,
-
-          altitude_ft: interpolate(
-            current.altitude_ft,
-            next.altitude_ft,
-            factor,
-          ),
-
-          indicated_airspeed_knots: interpolate(
-            current.indicated_airspeed_knots,
-            next.indicated_airspeed_knots,
-            factor,
-          ),
-
-          pitch_deg: interpolate(
-            current.pitch_deg,
-            next.pitch_deg,
-            factor,
-          ),
-
-          roll_deg: interpolate(
-            current.roll_deg,
-            next.roll_deg,
-            factor,
-          ),
-
-          vertical_speed_fpm: interpolate(
-            current.vertical_speed_fpm,
-            next.vertical_speed_fpm,
-            factor,
-          ),
-
-          bank_angle_deg: interpolate(
-            current.bank_angle_deg,
-            next.bank_angle_deg,
-            factor,
-          ),
-
-          throttle_percent: interpolate(
-            current.throttle_percent,
-            next.throttle_percent,
-            factor,
-          ),
-        };
-      }
-    }
-
-    return last;
+    return getTelemetryAtTime(
+      replay.telemetry,
+      currentTime,
+    );
   }, [replay, currentTime]);
 
   const incidentTelemetry = useMemo(() => {
@@ -258,91 +417,67 @@ export default function FlightReplay({
       return null;
     }
 
-    const telemetry = replay.telemetry;
+    return getTelemetryAtTime(
+      replay.telemetry,
+      activeEvent.timestamp_sec,
+    );
+  }, [replay, activeEvent]);
 
-    if (telemetry.length === 0) {
+  const incidentContext = useMemo(() => {
+    if (!replay || !activeEvent) {
       return null;
     }
 
-    const eventTime = activeEvent.timestamp_sec;
+    return {
+      before: getTelemetryAtTime(
+        replay.telemetry,
+        activeEvent.timestamp_sec - 10,
+      ),
 
-    if (eventTime <= telemetry[0].timestamp_sec) {
-      return telemetry[0];
+      incident: getTelemetryAtTime(
+        replay.telemetry,
+        activeEvent.timestamp_sec,
+      ),
+
+      after: getTelemetryAtTime(
+        replay.telemetry,
+        activeEvent.timestamp_sec + 10,
+      ),
+    };
+  }, [replay, activeEvent]);
+
+  const primaryDeviation = useMemo(() => {
+    if (
+      !incidentContext ||
+      !activeEvent ||
+      !incidentContext.before ||
+      !incidentContext.incident ||
+      !incidentContext.after
+    ) {
+      return null;
     }
 
-    const last = telemetry[telemetry.length - 1];
+    return getPrimaryDeviation(
+      activeEvent.label,
+      {
+        before: incidentContext.before,
+        incident: incidentContext.incident,
+        after: incidentContext.after,
+      },
+    );
+  }, [incidentContext, activeEvent]);
 
-    if (eventTime >= last.timestamp_sec) {
-      return last;
+  const peakDeviation = useMemo(() => {
+    if (!replay || !activeEvent) {
+      return null;
     }
 
-    for (let index = 0; index < telemetry.length - 1; index += 1) {
-      const current = telemetry[index];
-      const next = telemetry[index + 1];
-
-      if (
-        eventTime >= current.timestamp_sec &&
-        eventTime <= next.timestamp_sec
-      ) {
-        const duration =
-          next.timestamp_sec - current.timestamp_sec;
-
-        const factor =
-          duration === 0
-            ? 0
-            : (eventTime - current.timestamp_sec) /
-              duration;
-
-        return {
-          ...current,
-          timestamp_sec: eventTime,
-
-          altitude_ft: interpolate(
-            current.altitude_ft,
-            next.altitude_ft,
-            factor,
-          ),
-
-          indicated_airspeed_knots: interpolate(
-            current.indicated_airspeed_knots,
-            next.indicated_airspeed_knots,
-            factor,
-          ),
-
-          pitch_deg: interpolate(
-            current.pitch_deg,
-            next.pitch_deg,
-            factor,
-          ),
-
-          roll_deg: interpolate(
-            current.roll_deg,
-            next.roll_deg,
-            factor,
-          ),
-
-          vertical_speed_fpm: interpolate(
-            current.vertical_speed_fpm,
-            next.vertical_speed_fpm,
-            factor,
-          ),
-
-          bank_angle_deg: interpolate(
-            current.bank_angle_deg,
-            next.bank_angle_deg,
-            factor,
-          ),
-
-          throttle_percent: interpolate(
-            current.throttle_percent,
-            next.throttle_percent,
-            factor,
-          ),
-        };
-      }
-    }
-
-    return last;
+    return getPeakDeviation(
+      activeEvent.label,
+      replay.telemetry,
+      activeEvent.timestamp_sec,
+      replay.duration_sec,
+    );
   }, [replay, activeEvent]);
 
   if (loading) {
@@ -405,6 +540,12 @@ export default function FlightReplay({
           {incidentReplay && (
             <span className="rounded-full border border-[#e10600]/40 bg-[#1a1010] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-[#e10600]">
               Incident Replay
+            </span>
+          )}
+
+          {replayComplete && (
+            <span className="rounded-full border border-[#292929] bg-[#151515] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-500">
+              Replay Complete
             </span>
           )}
 
@@ -490,11 +631,7 @@ export default function FlightReplay({
                     event.timestamp_sec,
                 )}`}
                 onClick={() => {
-                  setActiveEvent(event);
-                  setIncidentReplay(false);
-                  setIncidentEndTime(null);
-                  setCurrentTime(event.timestamp_sec);
-                  setPlaying(false);
+                  selectEvent(event);
                 }}
                 className="group absolute top-[-24px] z-20 -translate-x-1/2"
                 style={{
@@ -545,6 +682,7 @@ export default function FlightReplay({
 
               setIncidentReplay(false);
               setIncidentEndTime(null);
+              setReplayComplete(false);
             }}
             className="relative z-10 w-full accent-[#e10600]"
             />
@@ -572,6 +710,13 @@ export default function FlightReplay({
             setActiveEvent(null);
             setIncidentReplay(false);
             setIncidentEndTime(null);
+            setReplayComplete(false);
+            setTrainerNotes({
+              strengths: '',
+              improvement: '',
+              trainingFocus: '',
+            });
+            setShowDebriefSummary(false);
           }}
           className="rounded-xl border border-[#303030] bg-[#171717] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-400 transition-colors hover:border-[#e10600]/40 hover:text-white"
         >
@@ -611,109 +756,53 @@ export default function FlightReplay({
           ))}
         </div>
       </div>
-
-        {/* Incident Debrief */}
+        
         {activeEvent && incidentTelemetry && (
-          <div className="mt-5 rounded-2xl border border-[#e10600]/30 bg-[#151010] p-5">
+          <IncidentDebrief
+            activeEvent={activeEvent}
+            incidentTelemetry={incidentTelemetry}
+            incidentContext={incidentContext}
+            primaryDeviation={primaryDeviation}
+            peakDeviation={peakDeviation}
+            trainerNotes={trainerNotes}
+            onTrainerNotesChange={(field, value) => {
+              setTrainerNotes((previous) => ({
+                ...previous,
+                [field]: value,
+              }));
+              setShowDebriefSummary(false);
+            }}
+            onSaveTrainerNotes={() => {
+              setShowDebriefSummary(true);
+            }}
+            onReplayIncident={() => {
+              const window = getIncidentWindow(
+                activeEvent.timestamp_sec,
+                replay.duration_sec,
+              );
 
-            {/* Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-
-              <div>
-                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[#e10600]">
-                  Selected Incident
-                </p>
-
-                <h3 className="mt-2 text-lg font-semibold text-white">
-                  {activeEvent.label}
-                </h3>
-
-                <p className="mt-1 font-mono text-[10px] text-gray-500">
-                  {formatTime(activeEvent.timestamp_sec)}
-                  {activeEvent.severity
-                    ? ` · ${activeEvent.severity}`
-                    : ''}
-                </p>
-              </div>
-
-              <div className="rounded-full border border-[#333333] bg-[#151515] px-3 py-1">
-                <span className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-500">
-                  Incident Snapshot
-                </span>
-              </div>
-
-            </div>
-
-            {/* Telemetry snapshot */}
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-
-              <Metric
-                label="Altitude"
-                value={Math.round(
-                  incidentTelemetry.altitude_ft,
-                ).toLocaleString()}
-                unit="ft"
-              />
-
-              <Metric
-                label="Airspeed"
-                value={Math.round(
-                  incidentTelemetry.indicated_airspeed_knots,
-                ).toString()}
-                unit="kt"
-              />
-
-              <Metric
-                label="Pitch"
-                value={incidentTelemetry.pitch_deg.toFixed(1)}
-                unit="°"
-              />
-
-              <Metric
-                label="Bank"
-                value={incidentTelemetry.bank_angle_deg.toFixed(1)}
-                unit="°"
-              />
-
-            </div>
-
-            {/* Incident context */}
-            <div className="mt-4 rounded-xl border border-[#292929] bg-[#111111] p-4">
-
-              <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                Incident Context
-              </p>
-
-              <p className="mt-2 text-sm leading-6 text-gray-300">
-                The aircraft telemetry at the recorded violation
-                is shown above. Use the replay to inspect the
-                aircraft state immediately before and after the
-                incident.
-              </p>
-
-            </div>
-
-            {/* Replay action */}
-            <button
-              type="button"
-              onClick={() => {
-                const window = getIncidentWindow(
-                  activeEvent.timestamp_sec,
-                  replay.duration_sec,
-                );
-
-                setCurrentTime(window.start);
-                setIncidentEndTime(window.end);
-                setIncidentReplay(true);
-                setPlaying(true);
-              }}
-              className="mt-4 w-full rounded-xl border border-[#e10600]/50 bg-[#1a1010] px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#241313]"
-            >
-              Replay Incident
-            </button>
-
-          </div>
+              setCurrentTime(window.start);
+              setIncidentEndTime(window.end);
+              setIncidentReplay(true);
+              setReplayComplete(false);
+              setPlaying(true);
+            }}
+          />
         )}
+
+        {showDebriefSummary &&
+          activeEvent &&
+          primaryDeviation && (
+            <DebriefSummary
+              activeEvent={activeEvent}
+              primaryDeviation={primaryDeviation}
+              peakDeviation={peakDeviation}
+              strengths={trainerNotes.strengths}
+              improvement={trainerNotes.improvement}
+              trainingFocus={trainerNotes.trainingFocus}
+            />
+          )}
+
         {replay.events.length > 0 && (
         <div className="mt-5 flex flex-wrap justify-center gap-2">
 
@@ -726,11 +815,7 @@ export default function FlightReplay({
                 key={`${event.timestamp_sec}-${event.label}-${index}`}
                 type="button"
                 onClick={() => {
-                  setActiveEvent(event);
-                  setIncidentReplay(false);
-                  setIncidentEndTime(null);
-                  setCurrentTime(event.timestamp_sec);
-                  setPlaying(false);
+                  selectEvent(event);
                 }}
                 className={`rounded-xl border px-3 py-2 text-left transition-colors ${
                     isActive
