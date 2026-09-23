@@ -2,8 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.benchmark.models import BenchmarkAssessment
 from app.models.flight_features import FlightFeatures
-from app.models.rule_violation import RuleViolation
 
 
 class TelemetryPoint(BaseModel):
@@ -28,40 +28,32 @@ class VisualObservation(BaseModel):
     source: str
 
 
-class BenchmarkResult(BaseModel):
-    rule_id: str
-    rule_name: str
-    severity: Literal["low", "medium", "high", "critical"]
-
-    message: str
-
-    expected: str
-    actual: str
-
-    benchmark_score: float
-    status: str
-    deviation: float
-
-
 class Assessment(BaseModel):
     features: FlightFeatures
 
-    benchmark_results: list[BenchmarkResult]
-
-    violations: list[RuleViolation]
+    benchmark: BenchmarkAssessment
 
     visual_observations: list[VisualObservation] = Field(
         default_factory=list
     )
 
-    risk_score: float = Field(ge=0, le=100)
+    # Temporary compatibility fields.
+    # These will be replaced when the new risk model is implemented.
+    risk_score: float | None = Field(
+        default=None,
+        ge=0,
+        le=100,
+    )
 
-    overall_rating: Literal[
-        "Excellent",
-        "Good",
-        "Fair",
-        "Poor",
-        "Unsafe",
-    ]
+    overall_rating: (
+        Literal[
+            "Excellent",
+            "Good",
+            "Fair",
+            "Poor",
+            "Unsafe",
+        ]
+        | None
+    ) = None
 
     telemetry: list[TelemetryPoint]

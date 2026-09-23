@@ -1,7 +1,4 @@
-from app.core.benchmark_adapter import (
-    evaluate_benchmark,
-    benchmark_violations,
-)
+from app.core.benchmark_adapter import benchmark_assessment
 from app.models.flight_features import FlightFeatures
 
 
@@ -23,23 +20,66 @@ def make_features() -> FlightFeatures:
     )
 
 
-def test_benchmark_engine_evaluates_flight():
+def test_benchmark_adapter_returns_assessment():
     features = make_features()
 
-    result = evaluate_benchmark(features)
+    result = benchmark_assessment(features)
 
     assert result is not None
-    assert 0.0 <= result.score <= 1.0
-
-    assert "max_speed_knots" in result.metrics
-    assert "max_bank_angle_deg" in result.metrics
-    assert "max_descent_rate_fpm" in result.metrics
-    assert "avg_throttle_percent" in result.metrics
+    assert result.benchmark_id == "red-scale-icao-cbta"
+    assert result.benchmark_version == "0.1.0"
 
 
-def test_safe_flight_has_no_benchmark_violations():
+def test_benchmark_adapter_returns_competency_findings():
     features = make_features()
 
-    violations = benchmark_violations(features)
+    result = benchmark_assessment(features)
 
-    assert violations == []
+    assert len(result.competencies) == 1
+
+    competency = result.competencies[0]
+
+    assert competency.competency_id == "flight_path_management_manual"
+
+    behaviour_ids = {
+        finding.behaviour_id
+        for finding in competency.findings
+    }
+
+    assert behaviour_ids == {
+        "bank_management",
+        "airspeed_control",
+        "altitude_management",
+        "descent_management",
+    }
+
+
+def test_benchmark_adapter_preserves_evidence():
+    features = make_features()
+
+    result = benchmark_assessment(features)
+
+    competency = result.competencies[0]
+
+    findings = {
+        finding.behaviour_id: finding
+        for finding in competency.findings
+    }
+
+    assert findings["bank_management"].evidence[0].metric == (
+        "max_bank_angle_deg"
+    )
+
+    assert findings["bank_management"].evidence[0].value == 20.0
+
+    assert findings["airspeed_control"].evidence[0].metric == (
+        "max_speed_knots"
+    )
+
+    assert findings["airspeed_control"].evidence[0].value == 220.0
+
+    assert findings["descent_management"].evidence[0].metric == (
+        "max_descent_rate_fpm"
+    )
+
+    assert findings["descent_management"].evidence[0].value == 1000.0

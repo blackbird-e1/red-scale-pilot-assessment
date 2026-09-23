@@ -11,11 +11,9 @@ Parser
     ↓
 Feature Extraction
     ↓
-Benchmark Engine
+Benchmark Assessment
     ↓
-Benchmark Results + Violations
-    ↓
-Risk Score
+Competency + Behaviour Findings
     ↓
 Telemetry Sampling
     ↓
@@ -26,13 +24,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from app.core.benchmark_adapter import (
-    benchmark_results_from_result,
-    benchmark_violations_from_result,
-    evaluate_benchmark,
-)
+from app.core.benchmark_adapter import benchmark_assessment
 from app.core.features import extract_features
-from app.core.ml import predict_risk
 from app.core.parser import parse_fdr
 from app.models.assessment import (
     Assessment,
@@ -42,26 +35,6 @@ from app.models.assessment import (
 
 
 MAX_TELEMETRY_POINTS = 240
-
-
-def determine_rating(risk_score: float) -> str:
-    """
-    Convert risk score into an overall pilot rating.
-    """
-
-    if risk_score < 20:
-        return "Excellent"
-
-    if risk_score < 40:
-        return "Good"
-
-    if risk_score < 60:
-        return "Fair"
-
-    if risk_score < 80:
-        return "Poor"
-
-    return "Unsafe"
 
 
 def build_telemetry(df: pd.DataFrame) -> list[TelemetryPoint]:
@@ -131,32 +104,10 @@ def assess_flight(
     features = extract_features(df)
 
     # -------------------------------------------------------------
-    # Benchmark Engine
+    # Benchmark Assessment
     # -------------------------------------------------------------
 
-    benchmark_result = evaluate_benchmark(features)
-
-    benchmark_results = benchmark_results_from_result(
-        benchmark_result
-    )
-
-    violations = benchmark_violations_from_result(
-        benchmark_result
-    )
-
-    # -------------------------------------------------------------
-    # Predict Risk
-    # -------------------------------------------------------------
-
-    risk_score = predict_risk(
-        benchmark_score=benchmark_result.score,
-    )
-
-    # -------------------------------------------------------------
-    # Determine Rating
-    # -------------------------------------------------------------
-
-    overall_rating = determine_rating(risk_score)
+    benchmark = benchmark_assessment(features)
 
     # -------------------------------------------------------------
     # Build visualization telemetry
@@ -166,14 +117,11 @@ def assess_flight(
 
     # -------------------------------------------------------------
     # Return Assessment
-    # ------------------------------------------------------------
+    # -------------------------------------------------------------
 
     return Assessment(
         features=features,
-        benchmark_results=benchmark_results,
-        violations=violations,
+        benchmark=benchmark,
         visual_observations=visual_observations or [],
-        risk_score=risk_score,
-        overall_rating=overall_rating,
         telemetry=telemetry,
     )

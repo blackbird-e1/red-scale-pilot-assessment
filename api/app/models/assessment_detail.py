@@ -3,13 +3,12 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.benchmark.models import BenchmarkAssessment
 from app.models.assessment import (
-    BenchmarkResult,
     TelemetryPoint,
     VisualObservation,
 )
 from app.models.flight_features import FlightFeatures
-from app.models.rule_violation import RuleViolation
 
 
 class AssessmentDetail(BaseModel):
@@ -25,10 +24,10 @@ class AssessmentDetail(BaseModel):
 
     features: FlightFeatures
 
-    risk_score: float
-    overall_rating: str
+    risk_score: float | None = None
+    overall_rating: str | None = None
 
-    benchmark_results: list[BenchmarkResult]
-    violations: list[RuleViolation]
+    benchmark: BenchmarkAssessment
+
     visual_observations: list[VisualObservation]
     telemetry: list[TelemetryPoint]

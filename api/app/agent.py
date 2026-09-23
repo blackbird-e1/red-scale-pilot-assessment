@@ -181,7 +181,7 @@ ASSESSMENT RULES:
 
 5. Do not invent flight data.
 
-6. Do not invent SOP violations.
+6. Do not invent assessment findings or evidence.
 
 7. Do not invent aircraft specifications.
 
@@ -189,7 +189,8 @@ ASSESSMENT RULES:
    assessment explicitly establishes that violation.
 
 9. The deterministic Red Scale assessment engine is authoritative for:
-   risk score, overall rating, features, and violations.
+   flight features, competency findings, behaviour findings, evidence,
+   and benchmark results.
 
 10. Never modify or override an assessment result.
 
