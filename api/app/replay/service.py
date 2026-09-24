@@ -2,6 +2,7 @@ from app.models.assessment_record import AssessmentRecord
 from app.replay.schemas import (
     ReplayDataset,
     ReplayEvent,
+    ReplayEvidence,
     ReplayTelemetryPoint,
 )
 
@@ -154,6 +155,32 @@ def build_replay_dataset(
                             f"{behaviour_name}"
                         ),
                         severity=severity,
+
+                        competency_id=competency.get(
+                            "competency_id"
+                        ),
+                        competency_name=competency_name,
+
+                        behaviour_id=finding.get(
+                            "behaviour_id"
+                        ),
+                        behaviour_name=behaviour_name,
+
+                        evidence=ReplayEvidence(
+                            metric=metric,
+                            value=float(
+                                evidence.get(
+                                    "value",
+                                    0.0,
+                                )
+                            ),
+                            timestamp_sec=evidence.get(
+                                "timestamp_sec"
+                            ),
+                            duration_sec=evidence.get(
+                                "duration_sec"
+                            ),
+                        ),
                     )
                 )
 

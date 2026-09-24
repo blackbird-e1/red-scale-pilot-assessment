@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import FlightCharts from './FlightCharts';
 import type {
   Assessment,
-  BenchmarkResult,
+  BenchmarkAssessment,
   DebriefResponse,
   RuleViolation,
 } from '../types';
@@ -34,6 +34,16 @@ function formatDuration(seconds: number): string {
   }
 
   return `${remainingSeconds}s`;
+}
+
+function formatTimestamp(seconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  return `${String(minutes).padStart(2, '0')}:${String(
+    remainingSeconds,
+  ).padStart(2, '0')}`;
 }
 
 function ratingClass(rating: Assessment['overall_rating']): string {
@@ -77,19 +87,21 @@ function severityClass(severity: RuleViolation['severity']): string {
   }
 }
 
-function benchmarkStatusClass(status: string): string {
+function cbtaStatusClass(
+  status: 'observed' | 'attention' | 'deviation',
+): string {
   switch (status) {
-    case 'ABOVE_LIMIT':
-    case 'BELOW_LIMIT':
-      return 'border-red-500/30 bg-red-500/10 text-red-300';
+    case 'observed':
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
 
-    case 'ABOVE_RANGE':
-    case 'BELOW_RANGE':
-    case 'OFF_TARGET':
+    case 'attention':
       return 'border-yellow-500/30 bg-yellow-500/10 text-yellow-300';
 
+    case 'deviation':
+      return 'border-red-500/30 bg-red-500/10 text-red-300';
+
     default:
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
+      return 'border-[#303030] bg-[#171717] text-gray-400';
   }
 }
 
@@ -121,74 +133,40 @@ function MetricCard({
   );
 }
 
-function BenchmarkCard({
-  result,
+function CBTAFindingCard({
+  finding,
 }: {
-  result: BenchmarkResult;
-})  {
+  finding: BenchmarkAssessment['competencies'][number]['findings'][number];
+}) {
   return (
     <div className="rounded-2xl border border-[#292929] bg-[#151515] p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-            Benchmark Metric
+            Observable Behaviour
           </p>
 
           <h3 className="mt-2 text-sm font-semibold text-white">
-            {result.rule_name}
+            {finding.behaviour_name}
           </h3>
+
+          <p className="mt-1 font-mono text-[9px] text-gray-700">
+            {finding.behaviour_id}
+          </p>
         </div>
 
         <span
-          className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] ${benchmarkStatusClass(
-            result.status,
+          className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] ${cbtaStatusClass(
+            finding.status,
           )}`}
         >
-          {result.status.replaceAll('_', ' ')}
+          {finding.status}
         </span>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-[#171717] p-3">
-          <p className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
-            Actual
-          </p>
-
-          <p className="mt-1 text-sm font-semibold text-white">
-            {result.actual}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#171717] p-3">
-          <p className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
-            Benchmark
-          </p>
-
-          <p className="mt-1 text-sm text-gray-300">
-            {result.expected}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#171717] p-3">
-          <p className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
-            Score
-          </p>
-
-          <p className="mt-1 text-sm font-semibold text-white">
-            {formatNumber(result.benchmark_score, 2)}
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#171717] p-3">
-          <p className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
-            Deviation
-          </p>
-
-          <p className="mt-1 text-sm font-semibold text-white">
-            {formatNumber(result.deviation, 1)}
-          </p>
-        </div>
-      </div>
+      <p className="mt-4 text-sm leading-6 text-gray-500">
+        {finding.explanation}
+      </p>
 
       <div className="mt-4 flex items-center justify-between border-t border-[#202020] pt-3">
         <span className="text-[9px] uppercase tracking-[0.16em] text-gray-700">
@@ -197,12 +175,46 @@ function BenchmarkCard({
 
         <span
           className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] ${severityClass(
-            result.severity,
+            finding.severity,
           )}`}
         >
-          {result.severity}
+          {finding.severity}
         </span>
       </div>
+
+      {finding.evidence.length > 0 && (
+        <div className="mt-4 rounded-xl border border-[#242424] bg-[#111111] p-4">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-700">
+            Benchmark Evidence
+          </p>
+
+          <div className="mt-3 space-y-2">
+            {finding.evidence.map((evidence, index) => (
+              <div
+                key={`${finding.behaviour_id}-${evidence.metric}-${index}`}
+                className="flex flex-wrap items-center justify-between gap-2"
+              >
+                <span className="font-mono text-[10px] text-gray-500">
+                  {evidence.metric}
+                </span>
+
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[10px] text-gray-300">
+                    {formatNumber(evidence.value)}
+                  </span>
+
+                  {evidence.timestamp_sec !== null &&
+                    evidence.timestamp_sec !== undefined && (
+                      <span className="font-mono text-[10px] text-[#e10600]">
+                        {formatTimestamp(evidence.timestamp_sec)}
+                      </span>
+                    )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -296,7 +308,7 @@ export default function AssessmentResults({
     }, [assessment]);
   const {
     features,
-    benchmark_results,
+    benchmark,
     violations,
     visual_observations,
     risk_score,
@@ -435,36 +447,59 @@ export default function AssessmentResults({
 
       </section>
       
-      {/* Benchmark assessment */}
+      {/* CBTA assessment */}
       <section className="mt-6">
         <div className="mb-5">
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#e10600]">
-            Benchmark Assessment
+            CBTA Assessment
           </p>
 
           <h2 className="mt-2 text-lg font-semibold text-white">
-            Benchmark-engine evaluation
+            Competency and Observable Behaviour Assessment
           </h2>
 
           <p className="mt-1 text-sm text-gray-600">
-            Metrics evaluated directly by benchmark-engine. Scores, statuses,
-            benchmarks, and deviations are provided by the engine.
+            Deterministic assessment against the configured ICAO/CBTA competency
+            framework and Red Scale prototype operational criteria.
           </p>
         </div>
 
-        {benchmark_results.length === 0 ? (
+        {benchmark.competencies.length === 0 ? (
           <div className="rounded-3xl border border-[#292929] bg-[#111111] p-7">
             <p className="text-sm text-gray-600">
-              No benchmark results available.
+              No CBTA findings available.
             </p>
           </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {benchmark_results.map((result) => (
-              <BenchmarkCard
-                key={`benchmark-${result.rule_id}-${result.rule_name}`}
-                result={result}
-              />
+          <div className="space-y-4">
+            {benchmark.competencies.map((competency) => (
+              <div
+                key={competency.competency_id}
+                className="rounded-2xl border border-[#292929] bg-[#111111] p-5"
+              >
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+                    Competency
+                  </p>
+
+                  <h3 className="mt-2 text-base font-semibold text-white">
+                    {competency.competency_name}
+                  </h3>
+
+                  <p className="mt-1 font-mono text-[9px] text-gray-700">
+                    {competency.competency_id}
+                  </p>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {competency.findings.map((finding) => (
+                    <CBTAFindingCard
+                      key={finding.behaviour_id}
+                      finding={finding}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}

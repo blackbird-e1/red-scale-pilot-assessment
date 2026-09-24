@@ -823,20 +823,36 @@ export default function FlightReplay({
                     : 'border-[#292929] bg-[#151515] hover:border-[#444444]'
                 }`}
                 >
-                <div className="flex items-center gap-2">
+                <div className="flex items-start gap-2">
 
-                    <span
-                    className={`h-2 w-2 rounded-full ${
-                        event.severity === 'medium'
+                  <span
+                    className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
+                      event.severity === 'medium'
                         ? 'bg-[#e10600]'
-                        : 'bg-gray-500'
+                        : event.severity === 'high'
+                          ? 'bg-red-500'
+                          : 'bg-gray-500'
                     }`}
-                    />
+                  />
 
-                    <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">
-                    {event.label}
-                    </span>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                      {event.behaviour_name || event.label}
+                    </p>
 
+                    {event.competency_name && (
+                      <p className="mt-1 max-w-[240px] text-[9px] text-gray-600">
+                        {event.competency_name}
+                      </p>
+                    )}
+                  </div>
+
+                </div>
+
+                <div className="mt-2 font-mono text-[10px] text-gray-600">
+                  {formatTime(event.timestamp_sec)}
+                  {' · '}
+                  {event.severity || 'unknown'}
                 </div>
 
                 <div className="mt-1 font-mono text-[10px] text-gray-600">

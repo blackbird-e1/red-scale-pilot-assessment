@@ -1,7 +1,7 @@
 """
 Compatibility adapter for the Red Scale benchmark.
 
-The previous implementation delegated to benchmark-engine.
+Compatibility adapter for the Red Scale benchmark assessment pipeline.
 The replacement benchmark now lives in app.benchmark.
 """
 

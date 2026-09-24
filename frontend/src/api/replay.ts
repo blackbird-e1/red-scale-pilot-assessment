@@ -15,11 +15,26 @@ export interface ReplayTelemetryPoint {
   throttle_percent: number;
 }
 
+export interface ReplayEvidence {
+  metric: string;
+  value: number;
+  timestamp_sec?: number | null;
+  duration_sec?: number | null;
+}
+
 export interface ReplayEvent {
   timestamp_sec: number;
   type: string;
   label: string;
   severity?: string | null;
+
+  competency_id?: string | null;
+  competency_name?: string | null;
+
+  behaviour_id?: string | null;
+  behaviour_name?: string | null;
+
+  evidence?: ReplayEvidence | null;
 }
 
 export interface ReplayDataset {
