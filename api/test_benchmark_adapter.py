@@ -27,10 +27,10 @@ def test_benchmark_adapter_returns_assessment():
 
     assert result is not None
     assert result.benchmark_id == "red-scale-icao-cbta"
-    assert result.benchmark_version == "0.1.0"
+    assert result.benchmark_version == "0.2.0"
 
 
-def test_benchmark_adapter_returns_competency_findings():
+def test_benchmark_adapter_returns_fpm_competency():
     features = make_features()
 
     result = benchmark_assessment(features)
@@ -39,7 +39,20 @@ def test_benchmark_adapter_returns_competency_findings():
 
     competency = result.competencies[0]
 
-    assert competency.competency_id == "flight_path_management_manual"
+    assert (
+        competency.competency_id
+        == "flight_path_management_manual"
+    )
+
+    assert len(competency.findings) == 4
+
+
+def test_benchmark_adapter_returns_new_behaviours():
+    features = make_features()
+
+    result = benchmark_assessment(features)
+
+    competency = result.competencies[0]
 
     behaviour_ids = {
         finding.behaviour_id
@@ -47,10 +60,10 @@ def test_benchmark_adapter_returns_competency_findings():
     }
 
     assert behaviour_ids == {
-        "bank_management",
-        "airspeed_control",
-        "altitude_management",
-        "descent_management",
+        "manual_flight_path_control",
+        "flight_path_deviation_monitoring",
+        "attitude_speed_thrust_management",
+        "safe_flight_path_management",
     }
 
 
@@ -66,20 +79,15 @@ def test_benchmark_adapter_preserves_evidence():
         for finding in competency.findings
     }
 
-    assert findings["bank_management"].evidence[0].metric == (
-        "max_bank_angle_deg"
-    )
+    manual_control = findings[
+        "manual_flight_path_control"
+    ]
 
-    assert findings["bank_management"].evidence[0].value == 20.0
+    evidence = {
+        item.metric: item.value
+        for item in manual_control.evidence
+    }
 
-    assert findings["airspeed_control"].evidence[0].metric == (
-        "max_speed_knots"
-    )
-
-    assert findings["airspeed_control"].evidence[0].value == 220.0
-
-    assert findings["descent_management"].evidence[0].metric == (
-        "max_descent_rate_fpm"
-    )
-
-    assert findings["descent_management"].evidence[0].value == 1000.0
+    assert evidence["max_bank_angle_deg"] == 20.0
+    assert evidence["max_pitch_deg"] == 10.0
+    assert evidence["min_pitch_deg"] == -5.0

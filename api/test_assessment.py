@@ -14,7 +14,7 @@ def test_assess_flight():
 
     assert assessment.benchmark is not None
     assert assessment.benchmark.benchmark_id == "red-scale-icao-cbta"
-    assert assessment.benchmark.benchmark_version == "0.1.0"
+    assert assessment.benchmark.benchmark_version == "0.2.0"
 
     assert len(assessment.benchmark.competencies) == 1
 
@@ -30,10 +30,10 @@ def test_assess_flight():
     }
 
     assert behaviour_ids == {
-        "bank_management",
-        "airspeed_control",
-        "altitude_management",
-        "descent_management",
+        "manual_flight_path_control",
+        "flight_path_deviation_monitoring",
+        "attitude_speed_thrust_management",
+        "safe_flight_path_management",
     }
 
     for finding in competency.findings:
