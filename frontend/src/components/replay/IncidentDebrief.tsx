@@ -190,6 +190,96 @@ export default function IncidentDebrief({
         </div>
       )}
 
+      {/* CBTA Assessment */}
+      {(activeEvent.competency_name ||
+        activeEvent.behaviour_name ||
+        activeEvent.evidence) && (
+        <div className="mt-4 rounded-xl border border-[#292929] bg-[#111111] p-4">
+
+          <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+            CBTA Assessment
+          </p>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+            {activeEvent.competency_name && (
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                  Competency
+                </p>
+
+                <p className="mt-1 text-sm font-medium text-white">
+                  {activeEvent.competency_name}
+                </p>
+              </div>
+            )}
+
+            {activeEvent.behaviour_name && (
+              <div>
+                <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                  Observable Behaviour
+                </p>
+
+                <p className="mt-1 text-sm font-medium text-white">
+                  {activeEvent.behaviour_name}
+                </p>
+              </div>
+            )}
+
+          </div>
+
+          {activeEvent.evidence && (
+            <div className="mt-4 rounded-lg border border-[#292929] bg-[#151515] p-3">
+
+              <p className="text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-600">
+                Benchmark Evidence
+              </p>
+
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-gray-600">
+                    Metric
+                  </p>
+
+                  <p className="mt-1 font-mono text-xs text-gray-300">
+                    {activeEvent.evidence.metric}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-[9px] uppercase tracking-[0.12em] text-gray-600">
+                    Value
+                  </p>
+
+                  <p className="mt-1 font-mono text-xs font-semibold text-white">
+                    {activeEvent.evidence.value.toFixed(1)}
+                  </p>
+                </div>
+
+                {activeEvent.evidence.timestamp_sec !== null &&
+                  activeEvent.evidence.timestamp_sec !== undefined && (
+                    <div>
+                      <p className="text-[9px] uppercase tracking-[0.12em] text-gray-600">
+                        Evidence Timestamp
+                      </p>
+
+                      <p className="mt-1 font-mono text-xs text-[#e10600]">
+                        {formatTime(
+                          activeEvent.evidence.timestamp_sec,
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+              </div>
+
+            </div>
+          )}
+
+        </div>
+      )}
+
       {/* Incident Trend */}
       {incidentContext?.before &&
         incidentContext.incident &&

@@ -7,36 +7,77 @@ from app.models.assessment_record import AssessmentRecord
 from app.services.pilot_dna import build_pilot_dna
 
 
+def make_benchmark(
+    findings=None,
+):
+    return {
+        "benchmark_id": "red-scale-icao-cbta",
+        "benchmark_version": "0.1.0",
+        "competencies": [
+            {
+                "competency_id": "flight_path_management_manual",
+                "competency_name": (
+                    "Aircraft Flight Path Management - Manual Control"
+                ),
+                "findings": findings or [],
+            }
+        ],
+    }
+
+
+def make_finding(
+    behaviour_id="bank_management",
+    behaviour_name="Bank Management",
+    severity="medium",
+):
+    return {
+        "behaviour_id": behaviour_id,
+        "behaviour_name": behaviour_name,
+        "status": "observed",
+        "severity": severity,
+        "evidence": [
+            {
+                "metric": "max_bank_angle_deg",
+                "value": 30.0,
+            }
+        ],
+        "explanation": (
+            "Maximum recorded bank angle was 30 degrees."
+        ),
+    }
+
+
 def make_record(
     pilot_id,
     risk_score,
     created_at,
-    violations=None,
+    findings=None,
 ):
     return AssessmentRecord(
         pilot_id=pilot_id,
         created_by=uuid4(),
         created_at=created_at,
         source_filename="test.csv",
-        benchmark_id="aviation",
-        benchmark_version="1",
+        benchmark_id="red-scale-icao-cbta",
+        benchmark_version="0.1.0",
         duration_sec=100,
         max_altitude_ft=10000,
         min_altitude_ft=5000,
-        max_speed_knots=400,
-        avg_speed_knots=300,
+        max_speed_knots=220,
+        avg_speed_knots=200,
         max_pitch_deg=20,
         min_pitch_deg=-10,
         max_roll_deg=30,
         min_roll_deg=-20,
-        max_bank_angle_deg=35,
-        max_climb_rate_fpm=3000,
-        max_descent_rate_fpm=-2500,
+        max_bank_angle_deg=30,
+        max_climb_rate_fpm=1000,
+        max_descent_rate_fpm=-1200,
         avg_throttle_percent=70,
         risk_score=risk_score,
         overall_rating="Good",
         benchmark_results=[],
-        violations=violations or [],
+        violations=[],
+        benchmark=make_benchmark(findings),
         visual_observations=[],
         telemetry=[],
     )
@@ -63,7 +104,7 @@ def test_pilot_dna_single_assessment():
     assert dna.latest_risk == 40
     assert dna.average_risk == 40
     assert dna.risk_trend == "insufficient_data"
-    assert dna.recurring_violations == []
+    assert dna.recurring_behaviours == []
 
 
 def test_pilot_dna_improving():
@@ -220,20 +261,14 @@ def test_pilot_dna_stable():
     assert dna.risk_trend == "stable"
 
 
-def test_recurring_violation():
+def test_recurring_behaviour():
     pilot_id = uuid4()
 
-    violation = {
-        "rule_id": "bank-angle",
-        "rule_name": "Excessive Bank Angle",
-        "severity": "high",
-        "message": "Bank angle exceeded threshold.",
-        "expected": "< 30 degrees",
-        "actual": "40 degrees",
-        "benchmark_score": 80,
-        "status": "failed",
-        "deviation": 10,
-    }
+    finding = make_finding(
+        behaviour_id="bank_management",
+        behaviour_name="Bank Management",
+        severity="high",
+    )
 
     records = [
         make_record(
@@ -245,7 +280,7 @@ def test_recurring_violation():
                 1,
                 tzinfo=timezone.utc,
             ),
-            [violation],
+            [finding],
         ),
         make_record(
             pilot_id,
@@ -256,7 +291,7 @@ def test_recurring_violation():
                 2,
                 tzinfo=timezone.utc,
             ),
-            [violation],
+            [finding],
         ),
         make_record(
             pilot_id,
@@ -267,31 +302,31 @@ def test_recurring_violation():
                 3,
                 tzinfo=timezone.utc,
             ),
-            [],
         ),
     ]
 
     dna = build_pilot_dna(records)
 
-    assert len(dna.recurring_violations) == 1
+    assert len(dna.recurring_behaviours) == 1
 
-    recurring = dna.recurring_violations[0]
+    recurring = dna.recurring_behaviours[0]
 
-    assert recurring.rule_id == "bank-angle"
+    assert recurring.behaviour_id == "bank_management"
+    assert recurring.behaviour_name == "Bank Management"
     assert recurring.occurrences == 2
     assert recurring.total_assessments == 3
     assert recurring.severity == "high"
     assert recurring.percentage == 66.67
 
 
-def test_single_violation_is_not_recurring():
+def test_single_behaviour_is_not_recurring():
     pilot_id = uuid4()
 
-    violation = {
-        "rule_id": "bank-angle",
-        "rule_name": "Excessive Bank Angle",
-        "severity": "high",
-    }
+    finding = make_finding(
+        behaviour_id="bank_management",
+        behaviour_name="Bank Management",
+        severity="high",
+    )
 
     records = [
         make_record(
@@ -303,7 +338,7 @@ def test_single_violation_is_not_recurring():
                 1,
                 tzinfo=timezone.utc,
             ),
-            [violation],
+            [finding],
         ),
         make_record(
             pilot_id,
@@ -314,13 +349,12 @@ def test_single_violation_is_not_recurring():
                 2,
                 tzinfo=timezone.utc,
             ),
-            [],
         ),
     ]
 
     dna = build_pilot_dna(records)
 
-    assert dna.recurring_violations == []
+    assert dna.recurring_behaviours == []
 
 
 def test_no_assessments():

@@ -1,10 +1,13 @@
 from collections import defaultdict
 
 from app.models.assessment_record import AssessmentRecord
-from app.models.pilot_dna import PilotDNA, RecurringViolation
+from app.models.pilot_dna import PilotDNA, RecurringBehaviour
 
 
-def _calculate_risk_trend(records: list[AssessmentRecord]) -> str:
+def _calculate_risk_trend(
+    records: list[AssessmentRecord],
+) -> str:
+
     if len(records) < 2:
         return "insufficient_data"
 
@@ -13,7 +16,14 @@ def _calculate_risk_trend(records: list[AssessmentRecord]) -> str:
         key=lambda record: record.created_at,
     )
 
-    scores = [record.risk_score for record in ordered]
+    scores = [
+        record.risk_score
+        for record in ordered
+        if record.risk_score is not None
+    ]
+
+    if len(scores) < 2:
+        return "insufficient_data"
 
     midpoint = len(scores) // 2
 
@@ -34,17 +44,18 @@ def _calculate_risk_trend(records: list[AssessmentRecord]) -> str:
     return "stable"
 
 
-def _build_recurring_violations(
+def _build_recurring_behaviours(
     records: list[AssessmentRecord],
-) -> list[RecurringViolation]:
+) -> list[RecurringBehaviour]:
+
     total_assessments = len(records)
 
     if total_assessments == 0:
         return []
 
-    violation_data = defaultdict(
+    behaviour_data = defaultdict(
         lambda: {
-            "rule_name": "",
+            "behaviour_name": "",
             "occurrences": 0,
             "severity": "low",
         }
@@ -53,49 +64,62 @@ def _build_recurring_violations(
     for record in records:
         seen_in_assessment = set()
 
-        for violation in record.violations:
-            rule_id = violation.get("rule_id")
+        benchmark = record.benchmark or {}
 
-            if not rule_id:
-                continue
-
-            # Count a violation once per assessment,
-            # even if it appears multiple times in the same record.
-            if rule_id in seen_in_assessment:
-                continue
-
-            seen_in_assessment.add(rule_id)
-
-            data = violation_data[rule_id]
-
-            data["rule_name"] = violation.get(
-                "rule_name",
-                rule_id,
-            )
-
-            data["occurrences"] += 1
-
-            severity = violation.get("severity", "low")
-
-            severity_order = {
-                "low": 1,
-                "medium": 2,
-                "high": 3,
-                "critical": 4,
-            }
-
-            if severity_order.get(
-                severity,
-                1,
-            ) > severity_order.get(
-                data["severity"],
-                1,
+        for competency in benchmark.get(
+            "competencies",
+            [],
+        ):
+            for finding in competency.get(
+                "findings",
+                [],
             ):
-                data["severity"] = severity
+                behaviour_id = finding.get(
+                    "behaviour_id"
+                )
+
+                if not behaviour_id:
+                    continue
+
+                if behaviour_id in seen_in_assessment:
+                    continue
+
+                seen_in_assessment.add(behaviour_id)
+
+                data = behaviour_data[behaviour_id]
+
+                data["behaviour_name"] = finding.get(
+                    "behaviour_name",
+                    behaviour_id,
+                )
+
+                data["occurrences"] += 1
+
+                severity = finding.get(
+                    "severity",
+                    "low",
+                )
+
+                severity_order = {
+                    "low": 1,
+                    "medium": 2,
+                    "high": 3,
+                    "critical": 4,
+                }
+
+                if severity_order.get(
+                    severity,
+                    1,
+                ) > severity_order.get(
+                    data["severity"],
+                    1,
+                ):
+                    data["severity"] = severity
 
     recurring = []
 
-    for rule_id, data in violation_data.items():
+    for behaviour_id, data in behaviour_data.items():
+
         occurrences = data["occurrences"]
 
         if occurrences < 2:
@@ -106,9 +130,9 @@ def _build_recurring_violations(
         ) * 100
 
         recurring.append(
-            RecurringViolation(
-                rule_id=rule_id,
-                rule_name=data["rule_name"],
+            RecurringBehaviour(
+                behaviour_id=behaviour_id,
+                behaviour_name=data["behaviour_name"],
                 occurrences=occurrences,
                 total_assessments=total_assessments,
                 severity=data["severity"],
@@ -123,40 +147,46 @@ def _build_recurring_violations(
 
     return recurring
 
+
 def _build_strengths(
     risk_trend: str,
-    recurring_violations: list[RecurringViolation],
+    recurring_behaviours: list[RecurringBehaviour],
 ) -> list[str]:
+
     strengths = []
 
     if risk_trend == "improving":
         strengths.append(
             "Overall risk performance is improving."
         )
+
     elif risk_trend == "stable":
         strengths.append(
             "Risk performance is consistent."
         )
 
-    if not recurring_violations:
+    if not recurring_behaviours:
         strengths.append(
-            "No recurring rule violations identified."
+            "No recurring behaviour patterns identified."
         )
 
     return strengths
 
 
 def _build_weaknesses(
-    recurring_violations: list[RecurringViolation],
+    recurring_behaviours: list[RecurringBehaviour],
 ) -> list[str]:
+
     return [
-        violation.rule_name
-        for violation in recurring_violations
+        behaviour.behaviour_name
+        for behaviour in recurring_behaviours
     ]
+
 
 def build_pilot_dna(
     records: list[AssessmentRecord],
 ) -> PilotDNA:
+
     if not records:
         raise ValueError(
             "Cannot build Pilot DNA without assessments."
@@ -170,36 +200,52 @@ def build_pilot_dna(
     risk_scores = [
         record.risk_score
         for record in ordered
+        if record.risk_score is not None
     ]
 
     latest = ordered[-1]
 
-    risk_trend = _calculate_risk_trend(ordered)
-    recurring_violations = _build_recurring_violations(
+    risk_trend = _calculate_risk_trend(
+        ordered
+    )
+
+    recurring_behaviours = _build_recurring_behaviours(
         ordered
     )
 
     strengths = _build_strengths(
         risk_trend,
-        recurring_violations,
+        recurring_behaviours,
     )
 
     weaknesses = _build_weaknesses(
-        recurring_violations,
+        recurring_behaviours,
+    )
+
+    latest_risk = (
+        round(latest.risk_score, 2)
+        if latest.risk_score is not None
+        else None
+    )
+
+    average_risk = (
+        round(
+            sum(risk_scores) / len(risk_scores),
+            2,
+        )
+        if risk_scores
+        else None
     )
 
     return PilotDNA(
         pilot_id=latest.pilot_id,
         assessment_count=len(ordered),
-        latest_risk=round(latest.risk_score, 2),
-        average_risk=round(
-            sum(risk_scores) / len(risk_scores),
-            2,
-        ),
+        latest_risk=latest_risk,
+        average_risk=average_risk,
         risk_trend=risk_trend,
         risk_history=risk_scores,
         strengths=strengths,
         weaknesses=weaknesses,
-        recurring_violations=recurring_violations,
+        recurring_behaviours=recurring_behaviours,
         latest_assessment_date=latest.created_at,
-)
+    )

@@ -1,0 +1,255 @@
+from app.benchmark.evaluator import (
+    evaluate_benchmark,
+    evaluate_behaviour,
+)
+from app.benchmark.registry import (
+    BENCHMARK_ID,
+    BENCHMARK_VERSION,
+    COMPETENCIES,
+)
+from app.models.flight_features import FlightFeatures
+
+
+def create_test_features():
+    return FlightFeatures(
+        duration_sec=600,
+        max_speed_knots=180,
+        avg_speed_knots=150,
+        max_bank_angle_deg=43.2,
+        max_pitch_deg=12.0,
+        min_pitch_deg=-5.0,
+        max_roll_deg=43.2,
+        min_roll_deg=-43.2,
+        max_descent_rate_fpm=900,
+        max_altitude_ft=10000,
+        min_altitude_ft=5000,
+        max_climb_rate_fpm=1200,
+        avg_throttle_percent=60,
+    )
+
+
+def test_benchmark_identity():
+    assert BENCHMARK_ID == "red-scale-icao-cbta"
+    assert BENCHMARK_VERSION == "0.3.1"
+
+
+def test_fpm_competency_exists():
+    assert "flight_path_management_manual" in COMPETENCIES
+
+    competency = COMPETENCIES[
+        "flight_path_management_manual"
+    ]
+
+    assert (
+        competency["name"]
+        == "Aeroplane Flight Path Management - Manual Control"
+    )
+
+
+def test_supported_behaviours():
+    competency = COMPETENCIES[
+        "flight_path_management_manual"
+    ]
+
+    behaviour_ids = set(competency["behaviours"].keys())
+
+    assert behaviour_ids == {
+        "manual_flight_path_control",
+        "flight_path_deviation_monitoring",
+        "attitude_speed_thrust_management",
+        "safe_flight_path_management",
+    }
+
+
+def test_behaviours_have_required_definition_fields():
+    competency = COMPETENCIES[
+        "flight_path_management_manual"
+    ]
+
+    for behaviour_id, definition in competency["behaviours"].items():
+        assert definition["name"]
+        assert definition["description"]
+        assert definition["icao_observable_behaviour"]
+        assert definition["metrics"]
+        assert definition["criteria"]
+
+        assert len(definition["metrics"]) > 0
+
+
+def test_behaviour_evaluation_produces_evidence():
+    features = create_test_features()
+
+    competency = COMPETENCIES[
+        "flight_path_management_manual"
+    ]
+
+    for behaviour_id, definition in competency["behaviours"].items():
+        finding = evaluate_behaviour(
+            behaviour_id=behaviour_id,
+            definition=definition,
+            features=features,
+        )
+
+        assert finding.behaviour_id == behaviour_id
+        assert finding.behaviour_name == definition["name"]
+
+        assert finding.status in {
+            "observed",
+            "attention",
+            "deviation",
+        }
+
+        assert finding.severity in {
+            "low",
+            "medium",
+            "high",
+        }
+
+        assert len(finding.evidence) == len(
+            definition["metrics"]
+        )
+
+        for evidence in finding.evidence:
+            assert evidence.metric in definition["metrics"]
+            assert isinstance(evidence.value, float)
+
+def test_complete_benchmark_assessment():
+    features = create_test_features()
+
+    assessment = evaluate_benchmark(features)
+
+    assert assessment.benchmark_id == "red-scale-icao-cbta"
+    assert assessment.benchmark_version == "0.3.1"
+
+    assert len(assessment.competencies) == 1
+
+    competency = assessment.competencies[0]
+
+    assert (
+        competency.competency_id
+        == "flight_path_management_manual"
+    )
+
+    assert (
+        competency.competency_name
+        == "Aeroplane Flight Path Management - Manual Control"
+    )
+
+    assert len(competency.findings) == 4
+
+    behaviour_ids = {
+        finding.behaviour_id
+        for finding in competency.findings
+    }
+
+    assert behaviour_ids == {
+        "manual_flight_path_control",
+        "flight_path_deviation_monitoring",
+        "attitude_speed_thrust_management",
+        "safe_flight_path_management",
+    }
+
+
+def test_evidence_values_are_preserved():
+    features = create_test_features()
+
+    assessment = evaluate_benchmark(features)
+
+    findings = {
+        finding.behaviour_id: finding
+        for finding in assessment.competencies[0].findings
+    }
+
+    manual_control = findings[
+        "manual_flight_path_control"
+    ]
+
+    evidence = {
+        item.metric: item.value
+        for item in manual_control.evidence
+    }
+
+    assert evidence["max_bank_angle_deg"] == 43.2
+    assert evidence["max_pitch_deg"] == 12.0
+    assert evidence["min_pitch_deg"] == -5.0
+
+def test_max_threshold_statuses():
+    features = create_test_features()
+
+    features.max_bank_angle_deg = 20.0
+
+    definition = COMPETENCIES[
+        "flight_path_management_manual"
+    ]["behaviours"]["manual_flight_path_control"]
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "observed"
+    assert finding.severity == "low"
+
+    features.max_bank_angle_deg = 30.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "attention"
+    assert finding.severity == "medium"
+
+    features.max_bank_angle_deg = 45.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "deviation"
+    assert finding.severity == "high"
+
+def test_min_threshold_statuses():
+    features = create_test_features()
+
+    definition = COMPETENCIES[
+        "flight_path_management_manual"
+    ]["behaviours"]["manual_flight_path_control"]
+
+    # Keep the other metrics safely below their thresholds.
+    features.max_bank_angle_deg = 20.0
+    features.max_pitch_deg = 10.0
+
+    features.min_pitch_deg = -5.0
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "observed"
+
+    features.min_pitch_deg = -10.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "attention"
+
+    features.min_pitch_deg = -15.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "deviation"

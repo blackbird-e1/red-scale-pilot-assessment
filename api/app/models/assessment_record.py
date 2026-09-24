@@ -129,25 +129,39 @@ class AssessmentRecord(Base):
     # Assessment output
     # ---------------------------------------------------------
 
-    risk_score: Mapped[float] = mapped_column(
+    # The new benchmark produces competency, behaviour,
+    # and evidence findings. The complete structure is stored
+    # as JSON so the benchmark can evolve without requiring
+    # a new relational column for every finding.
+    benchmark: Mapped[dict] = mapped_column(
+        JSONB,
+        nullable=False,
+    )
+
+    # Temporary compatibility fields.
+    # These are retained until the API/database migration is
+    # completely finished.
+    risk_score: Mapped[float | None] = mapped_column(
         Float,
-        nullable=False,
+        nullable=True,
     )
 
-    overall_rating: Mapped[str] = mapped_column(
+    overall_rating: Mapped[str | None] = mapped_column(
         String(20),
-        nullable=False,
+        nullable=True,
     )
 
-    # Complex/variable assessment data is retained as JSON.
-    benchmark_results: Mapped[list] = mapped_column(
+    # Legacy benchmark data.
+    # Keep these columns temporarily so existing database rows
+    # remain readable during the migration.
+    benchmark_results: Mapped[list | None] = mapped_column(
         JSONB,
-        nullable=False,
+        nullable=True,
     )
 
-    violations: Mapped[list] = mapped_column(
+    violations: Mapped[list | None] = mapped_column(
         JSONB,
-        nullable=False,
+        nullable=True,
     )
 
     visual_observations: Mapped[list] = mapped_column(

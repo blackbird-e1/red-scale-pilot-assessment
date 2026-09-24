@@ -6,11 +6,10 @@ def generate_report(
 ) -> dict:
 
     return {
-        "overall_rating": assessment.overall_rating,
-        "risk_score": assessment.risk_score,
         "features": assessment.features.model_dump(),
-        "violations": [
-            violation.model_dump()
-            for violation in assessment.violations
+        "benchmark": assessment.benchmark.model_dump(),
+        "visual_observations": [
+            observation.model_dump()
+            for observation in assessment.visual_observations
         ],
     }

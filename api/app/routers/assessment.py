@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.benchmark.registry import BENCHMARK_ID, BENCHMARK_VERSION
 from app.database import get_db
 from app.dependencies.auth import (
     get_current_user,
@@ -34,9 +34,6 @@ ALLOWED_IMAGE_EXTENSIONS = {
 }
 
 MAX_IMAGE_SIZE = 10 * 1024 * 1024
-
-BENCHMARK_ID = "aviation"
-BENCHMARK_VERSION = "1"
 
 
 @router.post(
@@ -188,20 +185,15 @@ async def create_assessment(
             max_descent_rate_fpm=assessment.features.max_descent_rate_fpm,
             avg_throttle_percent=assessment.features.avg_throttle_percent,
 
+            benchmark=assessment.benchmark.model_dump(mode="json"),
+
             risk_score=assessment.risk_score,
             overall_rating=assessment.overall_rating,
 
-            benchmark_results=[
+            visual_observations=[
                 item.model_dump(mode="json")
-                for item in assessment.benchmark_results
+                for item in assessment.visual_observations
             ],
-
-            violations=[
-                item.model_dump(mode="json")
-                for item in assessment.violations
-            ],
-
-            visual_observations=assessment.visual_observations,
 
             telemetry=[
                 item.model_dump(mode="json")
@@ -376,8 +368,7 @@ async def get_assessment(
         features=features,
         risk_score=record.risk_score,
         overall_rating=record.overall_rating,
-        benchmark_results=record.benchmark_results,
-        violations=record.violations,
+        benchmark=record.benchmark,
         visual_observations=record.visual_observations,
         telemetry=record.telemetry,
     )

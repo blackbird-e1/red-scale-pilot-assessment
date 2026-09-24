@@ -2,49 +2,80 @@ from app.models.assessment_record import AssessmentRecord
 from app.replay.schemas import (
     ReplayDataset,
     ReplayEvent,
+    ReplayEvidence,
     ReplayTelemetryPoint,
 )
 
 
-def find_violation_timestamp(
-    violation: dict,
+def find_evidence_timestamp(
+    metric: str,
     telemetry: list[ReplayTelemetryPoint],
 ) -> float:
     """
-    Find the telemetry timestamp that best represents a violation.
+    Backward-compatible fallback for older assessment records
+    that do not contain timestamped benchmark evidence.
 
-    The current assessment engine exposes violation rule names,
-    while the replay dataset contains the underlying telemetry.
-
-    For the currently supported benchmark rules:
-    - Max Speed Knots -> maximum recorded airspeed
-    - Max Bank Angle Deg -> maximum absolute bank angle
-
-    Falls back to timestamp 0 if the rule cannot be mapped.
+    New assessments should normally provide timestamp_sec directly
+    through benchmark evidence.
     """
 
     if not telemetry:
         return 0.0
 
-    rule_name = violation.get(
-        "rule_name",
-        "",
-    ).strip().lower()
-
-    if "max speed" in rule_name:
+    if metric == "max_speed_knots":
         point = max(
             telemetry,
             key=lambda item: item.indicated_airspeed_knots,
         )
-
         return point.timestamp_sec
 
-    if "max bank" in rule_name:
+    if metric == "max_bank_angle_deg":
         point = max(
             telemetry,
             key=lambda item: abs(item.bank_angle_deg),
         )
+        return point.timestamp_sec
 
+    if metric == "max_altitude_ft":
+        point = max(
+            telemetry,
+            key=lambda item: item.altitude_ft,
+        )
+        return point.timestamp_sec
+
+    if metric == "min_altitude_ft":
+        point = min(
+            telemetry,
+            key=lambda item: item.altitude_ft,
+        )
+        return point.timestamp_sec
+
+    if metric == "max_pitch_deg":
+        point = max(
+            telemetry,
+            key=lambda item: item.pitch_deg,
+        )
+        return point.timestamp_sec
+
+    if metric == "min_pitch_deg":
+        point = min(
+            telemetry,
+            key=lambda item: item.pitch_deg,
+        )
+        return point.timestamp_sec
+
+    if metric == "max_climb_rate_fpm":
+        point = max(
+            telemetry,
+            key=lambda item: item.vertical_speed_fpm,
+        )
+        return point.timestamp_sec
+
+    if metric == "max_descent_rate_fpm":
+        point = min(
+            telemetry,
+            key=lambda item: item.vertical_speed_fpm,
+        )
         return point.timestamp_sec
 
     return 0.0
@@ -72,23 +103,86 @@ def build_replay_dataset(
 
     events = []
 
-    for violation in record.violations:
-        timestamp_sec = find_violation_timestamp(
-            violation,
-            telemetry,
+    for competency in record.benchmark.get(
+        "competencies",
+        [],
+    ):
+        competency_name = competency.get(
+            "competency_name",
+            "Competency",
         )
 
-        events.append(
-            ReplayEvent(
-                timestamp_sec=timestamp_sec,
-                type="violation",
-                label=violation.get(
-                    "rule_name",
-                    "Violation",
-                ),
-                severity=violation.get("severity"),
+        for finding in competency.get(
+            "findings",
+            [],
+        ):
+            behaviour_name = finding.get(
+                "behaviour_name",
+                "Behaviour",
             )
-        )
+
+            severity = finding.get("severity")
+
+            for evidence in finding.get(
+                "evidence",
+                [],
+            ):
+                metric = evidence.get("metric")
+
+                if not metric:
+                    continue
+
+                # Prefer the timestamp produced by the benchmark.
+                # This is the authoritative timestamp for new assessments.
+                timestamp_sec = evidence.get(
+                    "timestamp_sec"
+                )
+
+                # Fall back to calculating the timestamp for
+                # older assessment records.
+                if timestamp_sec is None:
+                    timestamp_sec = find_evidence_timestamp(
+                        metric,
+                        telemetry,
+                    )
+
+                events.append(
+                    ReplayEvent(
+                        timestamp_sec=timestamp_sec,
+                        type="behaviour",
+                        label=(
+                            f"{competency_name}: "
+                            f"{behaviour_name}"
+                        ),
+                        severity=severity,
+
+                        competency_id=competency.get(
+                            "competency_id"
+                        ),
+                        competency_name=competency_name,
+
+                        behaviour_id=finding.get(
+                            "behaviour_id"
+                        ),
+                        behaviour_name=behaviour_name,
+
+                        evidence=ReplayEvidence(
+                            metric=metric,
+                            value=float(
+                                evidence.get(
+                                    "value",
+                                    0.0,
+                                )
+                            ),
+                            timestamp_sec=evidence.get(
+                                "timestamp_sec"
+                            ),
+                            duration_sec=evidence.get(
+                                "duration_sec"
+                            ),
+                        ),
+                    )
+                )
 
     events.sort(
         key=lambda event: event.timestamp_sec,

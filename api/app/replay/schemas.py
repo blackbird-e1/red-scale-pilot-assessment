@@ -21,13 +21,25 @@ class ReplayTelemetryPoint(BaseModel):
     throttle_percent: float
 
 
+class ReplayEvidence(BaseModel):
+    metric: str
+    value: float
+    timestamp_sec: float | None = None
+    duration_sec: float | None = None
+
 class ReplayEvent(BaseModel):
     timestamp_sec: float
     type: str
     label: str
     severity: str | None = None
 
+    competency_id: str | None = None
+    competency_name: str | None = None
 
+    behaviour_id: str | None = None
+    behaviour_name: str | None = None
+
+    evidence: ReplayEvidence | None = None
 class ReplayDataset(BaseModel):
     assessment_id: UUID
     pilot_id: UUID

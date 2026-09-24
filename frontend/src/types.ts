@@ -60,17 +60,11 @@ export interface TelemetryPoint {
 
 export interface Assessment {
   features: FlightFeatures;
-
-  benchmark_results: BenchmarkResult[];
-
+  benchmark: BenchmarkAssessment;
   violations: RuleViolation[];
-
   visual_observations: VisualObservation[];
-
   risk_score: number;
-
   overall_rating: OverallRating;
-
   telemetry: TelemetryPoint[];
 }
 
@@ -101,16 +95,42 @@ export interface VisualObservation {
   source: string;
 }
 
-export interface BenchmarkResult {
-  rule_id: string;
-  rule_name: string;
-  severity: ViolationSeverity;
-  message: string;
-  expected: string;
-  actual: string;
-  benchmark_score: number;
-  status: string;
-  deviation: number;
+export interface BenchmarkEvidence {
+  metric: string;
+  value: number;
+  timestamp_sec?: number | null;
+  duration_sec?: number | null;
+}
+
+export type BenchmarkBehaviourStatus =
+  | 'observed'
+  | 'attention'
+  | 'deviation';
+
+export type BenchmarkBehaviourSeverity =
+  | 'low'
+  | 'medium'
+  | 'high';
+
+export interface BenchmarkFinding {
+  behaviour_id: string;
+  behaviour_name: string;
+  status: BenchmarkBehaviourStatus;
+  severity: BenchmarkBehaviourSeverity;
+  evidence: BenchmarkEvidence[];
+  explanation: string;
+}
+
+export interface BenchmarkAssessment {
+  benchmark_id: string;
+  benchmark_version: string;
+  competencies: BenchmarkCompetency[];
+}
+
+export interface BenchmarkCompetency {
+  competency_id: string;
+  competency_name: string;
+  findings: BenchmarkFinding[];
 }
 
 export type Role = 'user' | 'assistant';
@@ -145,18 +165,13 @@ export interface AssessmentDetail {
   pilot_id: string;
   created_by: string;
   created_at: string;
-
   source_filename: string;
-
   benchmark_id: string;
   benchmark_version: string;
-
   features: FlightFeatures;
-
+  benchmark: BenchmarkAssessment;
   risk_score: number;
   overall_rating: OverallRating;
-
-  benchmark_results: BenchmarkResult[];
   violations: RuleViolation[];
   visual_observations: VisualObservation[];
   telemetry: TelemetryPoint[];

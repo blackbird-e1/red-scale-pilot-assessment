@@ -1,7 +1,4 @@
-from app.core.benchmark_adapter import (
-    evaluate_benchmark,
-    benchmark_violations,
-)
+from app.core.benchmark_adapter import benchmark_assessment
 from app.models.flight_features import FlightFeatures
 
 
@@ -23,23 +20,74 @@ def make_features() -> FlightFeatures:
     )
 
 
-def test_benchmark_engine_evaluates_flight():
+def test_benchmark_adapter_returns_assessment():
     features = make_features()
 
-    result = evaluate_benchmark(features)
+    result = benchmark_assessment(features)
 
     assert result is not None
-    assert 0.0 <= result.score <= 1.0
-
-    assert "max_speed_knots" in result.metrics
-    assert "max_bank_angle_deg" in result.metrics
-    assert "max_descent_rate_fpm" in result.metrics
-    assert "avg_throttle_percent" in result.metrics
+    assert result.benchmark_id == "red-scale-icao-cbta"
+    assert result.benchmark_version == "0.3.1"
 
 
-def test_safe_flight_has_no_benchmark_violations():
+def test_benchmark_adapter_returns_fpm_competency():
     features = make_features()
 
-    violations = benchmark_violations(features)
+    result = benchmark_assessment(features)
 
-    assert violations == []
+    assert len(result.competencies) == 1
+
+    competency = result.competencies[0]
+
+    assert (
+        competency.competency_id
+        == "flight_path_management_manual"
+    )
+
+    assert len(competency.findings) == 4
+
+
+def test_benchmark_adapter_returns_new_behaviours():
+    features = make_features()
+
+    result = benchmark_assessment(features)
+
+    competency = result.competencies[0]
+
+    behaviour_ids = {
+        finding.behaviour_id
+        for finding in competency.findings
+    }
+
+    assert behaviour_ids == {
+        "manual_flight_path_control",
+        "flight_path_deviation_monitoring",
+        "attitude_speed_thrust_management",
+        "safe_flight_path_management",
+    }
+
+
+def test_benchmark_adapter_preserves_evidence():
+    features = make_features()
+
+    result = benchmark_assessment(features)
+
+    competency = result.competencies[0]
+
+    findings = {
+        finding.behaviour_id: finding
+        for finding in competency.findings
+    }
+
+    manual_control = findings[
+        "manual_flight_path_control"
+    ]
+
+    evidence = {
+        item.metric: item.value
+        for item in manual_control.evidence
+    }
+
+    assert evidence["max_bank_angle_deg"] == 20.0
+    assert evidence["max_pitch_deg"] == 10.0
+    assert evidence["min_pitch_deg"] == -5.0
