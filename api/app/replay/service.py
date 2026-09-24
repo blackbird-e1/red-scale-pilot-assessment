@@ -11,8 +11,11 @@ def find_evidence_timestamp(
     telemetry: list[ReplayTelemetryPoint],
 ) -> float:
     """
-    Find the telemetry timestamp that best represents
-    a benchmark evidence metric.
+    Backward-compatible fallback for older assessment records
+    that do not contain timestamped benchmark evidence.
+
+    New assessments should normally provide timestamp_sec directly
+    through benchmark evidence.
     """
 
     if not telemetry:
@@ -46,12 +49,31 @@ def find_evidence_timestamp(
         )
         return point.timestamp_sec
 
-    if metric == "max_descent_rate_fpm":
+    if metric == "max_pitch_deg":
         point = max(
             telemetry,
-            key=lambda item: abs(item.vertical_speed_fpm)
-            if item.vertical_speed_fpm < 0
-            else 0,
+            key=lambda item: item.pitch_deg,
+        )
+        return point.timestamp_sec
+
+    if metric == "min_pitch_deg":
+        point = min(
+            telemetry,
+            key=lambda item: item.pitch_deg,
+        )
+        return point.timestamp_sec
+
+    if metric == "max_climb_rate_fpm":
+        point = max(
+            telemetry,
+            key=lambda item: item.vertical_speed_fpm,
+        )
+        return point.timestamp_sec
+
+    if metric == "max_descent_rate_fpm":
+        point = min(
+            telemetry,
+            key=lambda item: item.vertical_speed_fpm,
         )
         return point.timestamp_sec
 
@@ -109,10 +131,14 @@ def build_replay_dataset(
                 if not metric:
                     continue
 
+                # Prefer the timestamp produced by the benchmark.
+                # This is the authoritative timestamp for new assessments.
                 timestamp_sec = evidence.get(
                     "timestamp_sec"
                 )
 
+                # Fall back to calculating the timestamp for
+                # older assessment records.
                 if timestamp_sec is None:
                     timestamp_sec = find_evidence_timestamp(
                         metric,

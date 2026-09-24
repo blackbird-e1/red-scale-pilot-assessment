@@ -27,7 +27,7 @@ def test_benchmark_adapter_returns_assessment():
 
     assert result is not None
     assert result.benchmark_id == "red-scale-icao-cbta"
-    assert result.benchmark_version == "0.2.0"
+    assert result.benchmark_version == "0.3.1"
 
 
 def test_benchmark_adapter_returns_fpm_competency():

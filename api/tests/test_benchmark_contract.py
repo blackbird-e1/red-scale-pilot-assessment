@@ -30,7 +30,7 @@ def create_test_features():
 
 def test_benchmark_identity():
     assert BENCHMARK_ID == "red-scale-icao-cbta"
-    assert BENCHMARK_VERSION == "0.2.0"
+    assert BENCHMARK_VERSION == "0.3.1"
 
 
 def test_fpm_competency_exists():
@@ -93,13 +93,25 @@ def test_behaviour_evaluation_produces_evidence():
         assert finding.behaviour_id == behaviour_id
         assert finding.behaviour_name == definition["name"]
 
-        assert finding.status == "observed"
-        assert finding.severity == "medium"
+        assert finding.status in {
+            "observed",
+            "attention",
+            "deviation",
+        }
+
+        assert finding.severity in {
+            "low",
+            "medium",
+            "high",
+        }
 
         assert len(finding.evidence) == len(
             definition["metrics"]
         )
 
+        for evidence in finding.evidence:
+            assert evidence.metric in definition["metrics"]
+            assert isinstance(evidence.value, float)
 
 def test_complete_benchmark_assessment():
     features = create_test_features()
@@ -107,7 +119,7 @@ def test_complete_benchmark_assessment():
     assessment = evaluate_benchmark(features)
 
     assert assessment.benchmark_id == "red-scale-icao-cbta"
-    assert assessment.benchmark_version == "0.2.0"
+    assert assessment.benchmark_version == "0.3.1"
 
     assert len(assessment.competencies) == 1
 
@@ -160,3 +172,84 @@ def test_evidence_values_are_preserved():
     assert evidence["max_bank_angle_deg"] == 43.2
     assert evidence["max_pitch_deg"] == 12.0
     assert evidence["min_pitch_deg"] == -5.0
+
+def test_max_threshold_statuses():
+    features = create_test_features()
+
+    features.max_bank_angle_deg = 20.0
+
+    definition = COMPETENCIES[
+        "flight_path_management_manual"
+    ]["behaviours"]["manual_flight_path_control"]
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "observed"
+    assert finding.severity == "low"
+
+    features.max_bank_angle_deg = 30.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "attention"
+    assert finding.severity == "medium"
+
+    features.max_bank_angle_deg = 45.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "deviation"
+    assert finding.severity == "high"
+
+def test_min_threshold_statuses():
+    features = create_test_features()
+
+    definition = COMPETENCIES[
+        "flight_path_management_manual"
+    ]["behaviours"]["manual_flight_path_control"]
+
+    # Keep the other metrics safely below their thresholds.
+    features.max_bank_angle_deg = 20.0
+    features.max_pitch_deg = 10.0
+
+    features.min_pitch_deg = -5.0
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "observed"
+
+    features.min_pitch_deg = -10.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "attention"
+
+    features.min_pitch_deg = -15.1
+
+    finding = evaluate_behaviour(
+        behaviour_id="manual_flight_path_control",
+        definition=definition,
+        features=features,
+    )
+
+    assert finding.status == "deviation"

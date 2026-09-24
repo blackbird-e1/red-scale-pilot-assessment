@@ -4,7 +4,7 @@ from app.models.assessment_record import AssessmentRecord
 from app.replay.service import build_replay_dataset
 
 
-def test_replay_uses_benchmark_evidence():
+def test_replay_uses_benchmark_evidence_timestamp():
 
     record = AssessmentRecord(
         id=uuid4(),
@@ -12,7 +12,7 @@ def test_replay_uses_benchmark_evidence():
         created_by=uuid4(),
         source_filename="test.csv",
         benchmark_id="red-scale-icao-cbta",
-        benchmark_version="0.1.0",
+        benchmark_version="0.3.1",
         duration_sec=100.0,
         max_altitude_ft=10000.0,
         min_altitude_ft=5000.0,
@@ -28,7 +28,7 @@ def test_replay_uses_benchmark_evidence():
         avg_throttle_percent=50.0,
         benchmark={
             "benchmark_id": "red-scale-icao-cbta",
-            "benchmark_version": "0.1.0",
+            "benchmark_version": "0.3.1",
             "competencies": [
                 {
                     "competency_id": "flight_path_management_manual",
@@ -45,6 +45,7 @@ def test_replay_uses_benchmark_evidence():
                                 {
                                     "metric": "max_bank_angle_deg",
                                     "value": 30.0,
+                                    "timestamp_sec": 75.0,
                                 }
                             ],
                             "explanation": (
@@ -92,4 +93,8 @@ def test_replay_uses_benchmark_evidence():
         "Bank Management"
     )
     assert event.severity == "medium"
-    assert event.timestamp_sec == 42.0
+
+    # The benchmark explicitly supplied 75.0 seconds.
+    # Replay must use that timestamp rather than recalculating
+    # the timestamp from telemetry.
+    assert event.timestamp_sec == 75.0

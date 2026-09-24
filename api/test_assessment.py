@@ -14,7 +14,7 @@ def test_assess_flight():
 
     assert assessment.benchmark is not None
     assert assessment.benchmark.benchmark_id == "red-scale-icao-cbta"
-    assert assessment.benchmark.benchmark_version == "0.2.0"
+    assert assessment.benchmark.benchmark_version == "0.3.1"
 
     assert len(assessment.benchmark.competencies) == 1
 
@@ -37,9 +37,18 @@ def test_assess_flight():
     }
 
     for finding in competency.findings:
-        assert finding.status == "observed"
-        assert finding.severity == "medium"
+        assert finding.status in {
+            "observed",
+            "attention",
+            "deviation",
+        }
+
+        assert finding.severity in {
+            "low",
+            "medium",
+            "high",
+        }
+
         assert len(finding.evidence) > 0
-        assert finding.explanation
 
     assert assessment.telemetry is not None

@@ -107,7 +107,10 @@ def assess_flight(
     # Benchmark Assessment
     # -------------------------------------------------------------
 
-    benchmark = benchmark_assessment(features)
+    benchmark = benchmark_assessment(
+        features,
+        evidence_source=df,
+    )
 
     # -------------------------------------------------------------
     # Build visualization telemetry
