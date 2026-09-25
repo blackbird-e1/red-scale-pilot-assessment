@@ -198,3 +198,73 @@ export interface PilotDNA {
   latest_assessment_date: string | null;
   risk_history: number[];
 }
+
+export interface TornadoExampleFlight {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface TornadoMetricSet {
+  trajectory_deviation: {
+    mean_error_m: number;
+    rmse_m: number;
+    max_error_m: number;
+    max_error_timestamp_sec: number;
+  };
+
+  position_stability: {
+    std_x_m: number;
+    std_y_m: number;
+    std_z_m: number;
+    overall_std_m: number;
+  };
+
+  velocity_stability: {
+    std_x_ms: number;
+    std_y_ms: number;
+    std_z_ms: number;
+    overall_std_ms: number;
+    mean_speed_ms: number;
+    max_speed_ms: number;
+  };
+
+  attitude_stability: {
+    roll_std_deg: number;
+    pitch_std_deg: number;
+    yaw_std_deg: number;
+    overall_std_deg: number;
+  };
+
+  control_smoothness: {
+    mean_roll_change: number;
+    mean_pitch_change: number;
+    mean_thrust_change: number;
+    mean_yaw_change: number;
+    overall_mean_change: number;
+    max_control_change: number;
+  };
+}
+
+export interface TornadoEvidence {
+  metric: string;
+  value: number;
+  unit: string;
+  timestamp_sec: number | null;
+  description: string;
+}
+
+export interface TornadoEvent {
+  timestamp_sec: number;
+  type: string;
+  severity: string;
+  description: string;
+  evidence: TornadoEvidence[];
+}
+
+export interface TornadoAssessmentResult {
+  flight_id: string;
+  duration_sec: number;
+  metrics: TornadoMetricSet;
+  events: TornadoEvent[];
+}

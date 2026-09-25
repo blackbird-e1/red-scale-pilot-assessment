@@ -4,9 +4,13 @@ import { loginWithGoogle, type LoginResponse } from '../api/auth';
 
 interface LoginProps {
   onLogin: (result: LoginResponse) => void;
+  onTryAutonomy: () => void;
 }
 
-export default function Login({ onLogin }: LoginProps) {
+export default function Login({
+  onLogin,
+  onTryAutonomy,
+}: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -96,6 +100,31 @@ export default function Login({ onLogin }: LoginProps) {
               </p>
             </div>
           )}
+
+          <div className="mt-8 border-t border-[#222222] pt-6">
+            <div className="text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e10600]">
+                Tornado
+              </p>
+
+              <h2 className="mt-2 text-sm font-semibold text-white">
+                Autonomous Flight Assessment
+              </h2>
+
+              <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-gray-600">
+                Evaluate recorded autonomous drone flight telemetry without creating an
+                account.
+              </p>
+
+              <button
+                type="button"
+                onClick={onTryAutonomy}
+                className="mt-4 rounded-xl border border-[#e10600]/40 bg-[#171111] px-5 py-3 text-xs font-semibold uppercase tracking-[0.15em] text-red-300 transition-colors hover:border-[#e10600] hover:bg-[#211313] hover:text-white"
+              >
+                Try Autonomous Flight Assessment
+              </button>
+            </div>
+          </div>
 
           <div className="mt-8 border-t border-[#222222] pt-5 text-center">
             <p className="text-[10px] uppercase tracking-[0.2em] text-gray-700">

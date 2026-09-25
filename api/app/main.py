@@ -20,6 +20,7 @@ from app.routers.debrief import router as debrief_router
 from app.routers.chat import router as chat_router
 from app.routers.auth import router as auth_router
 from app.replay.router import router as replay_router
+from app.tornado.router import router as tornado_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -149,5 +150,10 @@ app.include_router(
 
 app.include_router(
     replay_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    tornado_router,
     prefix="/api/v1",
 )
