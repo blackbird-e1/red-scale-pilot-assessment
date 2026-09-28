@@ -15,6 +15,7 @@ import {
 import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
 import PilotDNA from './components/PilotDNA';
+import AutonomousFlightAssessment from './components/AutonomousFlightAssessment';
 
 const CAPABILITIES = [
   {
@@ -89,6 +90,7 @@ export default function App() {
     const [trainees, setTrainees] = useState<Trainee[]>([]);
     const [selectedTraineeId, setSelectedTraineeId] = useState('');
     const [fileName, setFileName] = useState('');
+    const [showAutonomy, setShowAutonomy] = useState(false);
 
     useEffect(() => {
       async function validateSession() {
@@ -203,7 +205,20 @@ export default function App() {
   }
 
   if (!auth) {
-    return <Login onLogin={handleLogin} />;
+    if (showAutonomy) {
+      return (
+        <AutonomousFlightAssessment
+          onBack={() => setShowAutonomy(false)}
+        />
+      );
+    }
+
+    return (
+      <Login
+        onLogin={handleLogin}
+        onTryAutonomy={() => setShowAutonomy(true)}
+      />
+    );
   }
 
   if (auth.role === 'trainee') {
