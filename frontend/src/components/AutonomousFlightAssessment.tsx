@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
+  DebriefResponse,
   TornadoAssessmentResult,
   TornadoExampleFlight,
 } from "../types";
@@ -19,13 +20,31 @@ export default function AutonomousFlightAssessment({
   const [assessing, setAssessing] = useState(false);
   const [error, setError] = useState("");
 
+  const [debrief, setDebrief] = useState<DebriefResponse | null>(null);
+  const [debriefLoading, setDebriefLoading] = useState(false);
+  const [debriefError, setDebriefError] = useState("");
+
   const [telemetryFile, setTelemetryFile] = useState<File | null>(null);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [flightId, setFlightId] = useState("");
 
+  const telemetryInputRef = useRef<HTMLInputElement | null>(null);
+  const referenceInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     loadExamples();
   }, []);
+
+  useEffect(() => {
+    if (!result) {
+      setDebrief(null);
+      setDebriefError("");
+      setDebriefLoading(false);
+      return;
+    }
+
+    generateDebrief(result);
+  }, [result]);
 
   async function loadExamples() {
     try {
@@ -53,6 +72,50 @@ export default function AutonomousFlightAssessment({
       );
     } finally {
       setLoadingExamples(false);
+    }
+  }
+
+  async function generateDebrief(
+    assessment: TornadoAssessmentResult,
+  ) {
+    try {
+      setDebriefLoading(true);
+      setDebriefError("");
+      setDebrief(null);
+
+      const response = await fetch(
+        "/api/v1/tornado/debrief",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify(assessment),
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+
+        throw new Error(
+          errorData && typeof errorData.detail === "string"
+            ? errorData.detail
+            : "Unable to generate AI debrief.",
+        );
+      }
+
+      const data: DebriefResponse = await response.json();
+
+      setDebrief(data);
+    } catch (err) {
+      setDebriefError(
+        err instanceof Error
+          ? err.message
+          : "Unable to generate AI debrief.",
+      );
+    } finally {
+      setDebriefLoading(false);
     }
   }
 
@@ -139,6 +202,25 @@ export default function AutonomousFlightAssessment({
 
   function formatNumber(value: number, decimals = 2) {
     return value.toFixed(decimals);
+  }
+
+  function resetAssessment() {
+    setResult(null);
+    setError("");
+    setTelemetryFile(null);
+    setReferenceFile(null);
+    setFlightId("");
+    setDebrief(null);
+    setDebriefError("");
+    setDebriefLoading(false);
+
+    if (telemetryInputRef.current) {
+      telemetryInputRef.current.value = "";
+    }
+
+    if (referenceInputRef.current) {
+      referenceInputRef.current.value = "";
+    }
   }
 
   return (
@@ -257,6 +339,7 @@ export default function AutonomousFlightAssessment({
                     </label>
 
                     <input
+                      ref={telemetryInputRef}
                       type="file"
                       accept=".csv"
                       onChange={(event) => {
@@ -276,6 +359,7 @@ export default function AutonomousFlightAssessment({
                     </label>
 
                     <input
+                      ref={referenceInputRef}
                       type="file"
                       accept=".csv"
                       onChange={(event) => {
@@ -401,6 +485,18 @@ export default function AutonomousFlightAssessment({
             </>
           )}
 
+          {assessing && (
+            <div className="mt-6 rounded-xl border border-[#252525] bg-[#151515] p-5">
+              <p className="text-sm font-medium text-gray-300">
+                Processing flight telemetry...
+              </p>
+
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Calculating deterministic flight metrics and generating evidence.
+              </p>
+            </div>
+          )}
+
           {error && (
             <div className="mt-6 rounded-xl border border-red-900/50 bg-red-950/20 p-5">
               <p className="text-sm text-red-400">{error}</p>
@@ -426,12 +522,49 @@ export default function AutonomousFlightAssessment({
 
                 <button
                   type="button"
-                  onClick={() => setResult(null)}
+                  onClick={resetAssessment}
                   className="rounded-xl border border-[#333333] px-4 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-gray-400 transition-colors hover:border-[#555555] hover:text-white"
                 >
                   Assess Another
                 </button>
               </div>
+
+              <section className="rounded-2xl border border-[#252525] bg-[#111111] p-6">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-600">
+                    Assessment Summary
+                  </p>
+
+                  <h2 className="mt-2 text-lg font-medium text-white">
+                    Flight behaviour overview
+                  </h2>
+
+                  <p className="mt-4 max-w-3xl text-sm leading-7 text-gray-400">
+                    This flight was analyzed against its reference trajectory using
+                    deterministic telemetry-based metrics and threshold-based evidence
+                    detection.
+                  </p>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <SummaryStat
+                    label="Duration"
+                    value={`${formatNumber(result.duration_sec)} s`}
+                  />
+
+                  <SummaryStat
+                    label="Trajectory RMSE"
+                    value={`${formatNumber(
+                      result.metrics.trajectory_deviation.rmse_m,
+                    )} m`}
+                  />
+
+                  <SummaryStat
+                    label="Evidence Events"
+                    value={`${result.events.length}`}
+                  />
+                </div>
+              </section>
 
               <section className="rounded-2xl border border-[#252525] bg-[#111111] p-6">
                 <div className="mb-5">
@@ -524,8 +657,8 @@ export default function AutonomousFlightAssessment({
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="text-sm font-medium text-gray-200">
-                              {event.type}
+                            <p className="text-sm font-medium uppercase tracking-wide text-gray-200">
+                              {event.type.replaceAll("_", " ")}
                             </p>
 
                             <p className="mt-2 text-xs leading-5 text-gray-500">
@@ -533,9 +666,15 @@ export default function AutonomousFlightAssessment({
                             </p>
                           </div>
 
-                          <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.14em] text-[#e10600]">
-                            {formatNumber(event.timestamp_sec)} s
-                          </span>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[#e10600]">
+                              {formatNumber(event.timestamp_sec)} s
+                            </span>
+
+                            <span className="text-[10px] uppercase tracking-[0.14em] text-gray-600">
+                              {event.severity}
+                            </span>
+                          </div>
                         </div>
 
                         {event.evidence.length > 0 && (
@@ -565,19 +704,86 @@ export default function AutonomousFlightAssessment({
               </section>
 
               <section className="rounded-2xl border border-[#e10600]/20 bg-[#171111] p-6">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e10600]">
-                  AI Debrief
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#e10600]">✦</span>
+
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#e10600]">
+                    AI Debrief
+                  </p>
+                </div>
 
                 <h2 className="mt-2 text-lg font-medium text-white">
-                  Coming next
+                  Flight interpretation
                 </h2>
 
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
-                  The deterministic assessment is now available. The next
-                  step is to pass these findings and timestamped evidence into
-                  the existing AI debrief architecture.
+                <p className="mt-2 max-w-3xl text-xs leading-6 text-gray-500">
+                  AI-generated interpretation of the deterministic TORNADO
+                  assessment. The underlying metrics and evidence remain
+                  authoritative.
                 </p>
+
+                {debriefLoading && (
+                  <div className="mt-6 rounded-xl border border-[#2a2020] bg-[#171111] p-5">
+                    <p className="text-sm text-gray-400">
+                      Generating AI debrief...
+                    </p>
+
+                    <p className="mt-2 text-xs text-gray-600">
+                      Interpreting the deterministic metrics and evidence events.
+                    </p>
+                  </div>
+                )}
+
+                {!debriefLoading && debriefError && (
+                  <div className="mt-6 rounded-xl border border-red-900/50 bg-red-950/20 p-5">
+                    <p className="text-sm text-red-400">
+                      AI debrief unavailable
+                    </p>
+
+                    <p className="mt-2 text-xs leading-5 text-gray-600">
+                      The deterministic assessment is still available.
+                      The AI layer could not generate its interpretation.
+                    </p>
+
+                    <p className="mt-3 text-[10px] leading-5 text-red-400/70">
+                      {debriefError}
+                    </p>
+                  </div>
+                )}
+
+                {!debriefLoading && !debriefError && debrief && (
+                  <div className="mt-6 space-y-4">
+
+                    <div className="rounded-xl border border-[#252525] bg-[#151515] p-5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+                        Summary
+                      </p>
+
+                      <p className="mt-3 text-sm leading-7 text-gray-300">
+                        {debrief.summary}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-3">
+
+                      <DebriefList
+                        title="Key Findings"
+                        items={debrief.key_findings}
+                      />
+
+                      <DebriefList
+                        title="Areas for Review"
+                        items={debrief.areas_of_concern}
+                      />
+
+                      <DebriefList
+                        title="Recommendations"
+                        items={debrief.recommendations}
+                      />
+
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
           )}
@@ -623,6 +829,63 @@ function MetricCard({
       </div>
 
       <p className="mt-2 text-xs text-gray-600">{detail}</p>
+    </div>
+  );
+}
+
+function SummaryStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-[#252525] bg-[#151515] p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+        {label}
+      </p>
+
+      <p className="mt-2 text-lg font-medium text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function DebriefList({
+  title,
+  items,
+}: {
+  title: string;
+  items: string[];
+}) {
+  return (
+    <div className="rounded-xl border border-[#252525] bg-[#151515] p-5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+        {title}
+      </p>
+
+      {items.length === 0 ? (
+        <p className="mt-4 text-xs text-gray-600">
+          No additional observations.
+        </p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {items.map((item, index) => (
+            <div
+              key={`${title}-${index}`}
+              className="flex gap-3"
+            >
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#e10600]" />
+
+              <p className="text-xs leading-5 text-gray-400">
+                {item}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

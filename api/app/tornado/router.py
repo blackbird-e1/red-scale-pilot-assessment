@@ -6,6 +6,8 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from app.tornado.schemas import TornadoAssessmentResult
 from app.tornado.service import assess_tornado_flight
 from app.tornado.examples import EXAMPLE_FLIGHTS
+from app.models.debrief import DebriefResponse
+from app.tornado.debrief import generate_tornado_debrief
 
 router = APIRouter(
     prefix="/tornado",
@@ -87,6 +89,23 @@ async def assess_flight(
         if reference_path is not None:
             reference_path.unlink(missing_ok=True)
 
+@router.post(
+    "/debrief",
+    response_model=DebriefResponse,
+)
+async def create_tornado_debrief(
+    assessment: TornadoAssessmentResult,
+) -> DebriefResponse:
+
+    try:
+        return await generate_tornado_debrief(assessment)
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to generate TORNADO AI debrief.",
+        ) from exc
+    
 @router.get("/examples")
 async def list_examples():
     return [
