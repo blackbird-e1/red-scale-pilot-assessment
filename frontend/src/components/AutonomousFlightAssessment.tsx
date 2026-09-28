@@ -19,6 +19,10 @@ export default function AutonomousFlightAssessment({
   const [assessing, setAssessing] = useState(false);
   const [error, setError] = useState("");
 
+  const [telemetryFile, setTelemetryFile] = useState<File | null>(null);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [flightId, setFlightId] = useState("");
+
   useEffect(() => {
     loadExamples();
   }, []);
@@ -81,6 +85,52 @@ export default function AutonomousFlightAssessment({
         err instanceof Error
           ? err.message
           : "Unable to assess the selected flight.",
+      );
+    } finally {
+      setAssessing(false);
+    }
+  }
+
+  async function assessUploadedFlight() {
+    if (!telemetryFile || !referenceFile || !flightId.trim()) {
+      setError("Please select both CSV files and enter a flight ID.");
+      return;
+    }
+
+    try {
+      setAssessing(true);
+      setError("");
+      setResult(null);
+
+      const formData = new FormData();
+
+      formData.append("telemetry_csv", telemetryFile);
+      formData.append("reference_csv", referenceFile);
+      formData.append("flight_id", flightId.trim());
+
+      const response = await fetch("/api/v1/tornado/assess", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+
+        throw new Error(
+          errorData && typeof errorData.detail === "string"
+            ? errorData.detail
+            : "Failed to assess uploaded flight.",
+        );
+      }
+
+      const data: TornadoAssessmentResult = await response.json();
+
+      setResult(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to assess uploaded flight.",
       );
     } finally {
       setAssessing(false);
@@ -168,6 +218,103 @@ export default function AutonomousFlightAssessment({
                     explanation.
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-[#252525] bg-[#0f0f0f] p-6">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-600">
+                    Assess Your Flight
+                  </p>
+
+                  <h2 className="mt-2 text-lg font-medium text-white">
+                    Upload autonomous flight data
+                  </h2>
+
+                  <p className="mt-2 text-xs leading-5 text-gray-600">
+                    Upload telemetry and reference CSV files from an autonomous
+                    flight.
+                  </p>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+                      Flight ID
+                    </label>
+
+                    <input
+                      type="text"
+                      value={flightId}
+                      onChange={(event) => setFlightId(event.target.value)}
+                      placeholder="flight-001"
+                      className="mt-2 w-full rounded-xl border border-[#252525] bg-[#151515] px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-gray-700 focus:border-[#555555]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+                      Telemetry CSV
+                    </label>
+
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(event) => {
+                        const file = event.target.files
+                          ? event.target.files[0]
+                          : null;
+
+                        setTelemetryFile(file);
+                      }}
+                      className="mt-2 block w-full cursor-pointer rounded-xl border border-[#252525] bg-[#151515] px-4 py-3 text-xs text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-600">
+                      Reference CSV
+                    </label>
+
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={(event) => {
+                        const file = event.target.files
+                          ? event.target.files[0]
+                          : null;
+
+                        setReferenceFile(file);
+                      }}
+                      className="mt-2 block w-full cursor-pointer rounded-xl border border-[#252525] bg-[#151515] px-4 py-3 text-xs text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#252525] file:px-3 file:py-2 file:text-xs file:font-semibold file:text-gray-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={assessUploadedFlight}
+                    disabled={
+                      assessing ||
+                      !telemetryFile ||
+                      !referenceFile ||
+                      !flightId.trim()
+                    }
+                    className="rounded-xl bg-[#e10600] px-5 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {assessing
+                      ? "Assessing..."
+                      : "Assess Uploaded Flight"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="my-8 flex items-center gap-4">
+                <div className="h-px flex-1 bg-[#252525]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-700">
+                  Or
+                </span>
+                <div className="h-px flex-1 bg-[#252525]" />
               </div>
 
               <div className="mt-8 rounded-2xl border border-[#252525] bg-[#0f0f0f] p-6">
