@@ -14,7 +14,8 @@ from app.agent import run_agent, stream_agent
 from app.dependencies.auth import get_current_user
 from app.models.schemas import ChatRequest, ChatResponse, StreamChunk
 from app.models.user import User
-
+from app.database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ async def chat(
     request: Request,
     body: ChatRequest,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
     """
     Send a message to the F1 agent and receive a complete answer.
@@ -43,6 +45,8 @@ async def chat(
     answer = await run_agent(
         message=body.message,
         history=history,
+        db=db,
+        current_user=current_user,
     )
 
     return ChatResponse(
@@ -61,6 +65,7 @@ async def chat_stream(
     request: Request,
     body: ChatRequest,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """
     Stream the F1 agent's response as Server-Sent Events.
@@ -85,6 +90,8 @@ async def chat_stream(
             async for event_type, payload in stream_agent(
                 message=body.message,
                 history=history,
+                db=db,
+                current_user=current_user,
             ):
                 chunk = StreamChunk(
                     type=event_type,

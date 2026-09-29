@@ -1,20 +1,25 @@
 """
 Red Scale conversational assistant.
 
-The assistant uses Groq for aviation and flight-assessment questions only.
+The assistant uses LangGraph + Groq for aviation and
+flight-assessment questions.
 
 Critical flight assessment decisions are NOT made here.
 Those remain the responsibility of the deterministic
-assessment engine and the debrief service.
+assessment engine and debrief service.
 """
 
 import re
 from typing import AsyncGenerator
 
-from groq import AsyncGroq
+from langchain.agents import create_agent
+from langchain_groq import ChatGroq
 
 from app.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.user import User
+from app.tools.red_scale_tools import build_red_scale_tools
 
 OFF_TOPIC_RESPONSE = (
     "I can only help with aviation, flight assessment, pilot training, "
@@ -93,6 +98,19 @@ AVIATION_TERMS = (
     "aircraft operations",
     "pilot debrief",
     "flight debrief",
+    "red scale",
+    "assessment evidence",
+    "assessment finding",
+    "assessment findings",
+    "competency finding",
+    "competency findings",
+    "behaviour finding",
+    "behaviour findings",
+    "flight evidence",
+    "flight finding",
+    "pilot dna",
+    "debrief",
+    "replay",
 )
 
 
@@ -174,48 +192,54 @@ STRICT SCOPE:
 3. If a request mixes aviation with an unrelated topic, answer only the
    aviation portion and decline the unrelated portion.
 
-4. Do not infer that a question is aviation-related merely because it
-   contains generic words such as "who", "what", "history", or "mission".
-
 ASSESSMENT RULES:
 
-5. Do not invent flight data.
+4. Never invent flight data.
 
-6. Do not invent assessment findings or evidence.
+5. Never invent assessment findings or evidence.
 
-7. Do not invent aircraft specifications.
+6. Never invent aircraft specifications.
 
-8. Do not claim that a parameter violated an SOP unless the supplied
+7. Never claim that a parameter violated an SOP unless the supplied
    assessment explicitly establishes that violation.
 
-9. The deterministic Red Scale assessment engine is authoritative for:
+8. The deterministic Red Scale assessment engine is authoritative for:
    flight features, competency findings, behaviour findings, evidence,
    and benchmark results.
 
-10. Never modify or override an assessment result.
+9. Never modify or override an assessment result.
 
-11. If the user asks about a specific flight but no flight assessment
-    data has been provided in the conversation, clearly say that you
-    do not have that flight data.
+10. If required flight data is unavailable, clearly say so.
 
-12. Do not invent aircraft type, pilot identity, mission type, weather,
+11. Never invent aircraft type, pilot identity, mission type, weather,
     or operational circumstances.
 
-13. Keep answers concise, professional, and useful.
+12. Keep answers concise, professional, and useful.
 
-14. This assistant is an explanatory interface, not a replacement for
+13. This assistant is an explanatory interface, not a replacement for
     qualified aviation personnel, official SOPs, manuals, or operational
     procedures.
 
-15. Never fabricate evidence.
+14. Never fabricate evidence.
+
+IMPORTANT AGENT BEHAVIOUR:
+
+You have access to Red Scale tools.
+
+Use a tool when the user's question requires specific Red Scale
+assessment data.
+
+Do not guess data that could have been retrieved from a tool.
+
+When a tool returns assessment data, treat that data as authoritative.
+
+Explain conclusions using the retrieved evidence.
+
+Never modify data through a tool.
 """.strip()
 
 
 def _has_aviation_context(text: str) -> bool:
-    """
-    Return True when the supplied text contains clear aviation context.
-    """
-
     normalized = text.lower()
 
     if any(term in normalized for term in AVIATION_TERMS):
@@ -234,10 +258,6 @@ def _is_contextual_follow_up(
     message: str,
     history: list[dict] | None = None,
 ) -> bool:
-    """
-    Allow short follow-up questions when the recent conversation
-    is already clearly aviation-related.
-    """
 
     if not history:
         return False
@@ -266,9 +286,6 @@ def _is_aviation_related(
     message: str,
     history: list[dict] | None = None,
 ) -> bool:
-    """
-    Enforce the aviation-only scope before calling Groq.
-    """
 
     if _has_aviation_context(message):
         return True
@@ -276,20 +293,43 @@ def _is_aviation_related(
     return _is_contextual_follow_up(message, history)
 
 
+# ---------------------------------------------------------------------------
+# FIRST RED SCALE TOOL
+# ---------------------------------------------------------------------------
+
+def _build_agent(
+    db: AsyncSession,
+    current_user: User,
+):
+    """
+    Build a Red Scale agent with authenticated, read-only tools.
+    """
+
+    model = ChatGroq(
+        model=settings.groq_model,
+        api_key=settings.groq_api_key,
+        temperature=0.2,
+    )
+
+    tools = build_red_scale_tools(
+        db=db,
+        current_user=current_user,
+    )
+
+    return create_agent(
+        model=model,
+        tools=tools,
+        system_prompt=SYSTEM_PROMPT,
+    )
+
+
+
 def _build_messages(
     message: str,
     history: list[dict] | None = None,
-) -> list[dict[str, str]]:
-    """
-    Build the Groq chat message list.
-    """
+) -> list[dict]:
 
-    messages: list[dict[str, str]] = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT,
-        }
-    ]
+    messages: list[dict] = []
 
     if history:
         for turn in history:
@@ -310,40 +350,44 @@ def _build_messages(
     return messages
 
 
-def _client() -> AsyncGroq:
-    """
-    Create the Groq client.
-    """
-
-    return AsyncGroq(
-        api_key=settings.groq_api_key,
-    )
-
-
 async def run_agent(
     message: str,
-    history: list[dict] | None = None,
+    history: list[dict] | None,
+    db: AsyncSession,
+    current_user: User,
 ) -> str:
-    """
-    Generate a complete aviation-scoped assistant response.
-    """
 
     if not _is_aviation_related(message, history):
         return OFF_TOPIC_RESPONSE
 
-    client = _client()
-
-    response = await client.chat.completions.create(
-        model=settings.groq_model,
-        messages=_build_messages(message, history),
-        temperature=0.2,
+    agent = _build_agent(
+        db=db,
+        current_user=current_user,
     )
 
-    content = response.choices[0].message.content
+    result = await agent.ainvoke(
+        {
+            "messages": _build_messages(
+                message,
+                history,
+            )
+        }
+    )
+
+    messages = result.get("messages", [])
+
+    if not messages:
+        raise RuntimeError(
+            "LangGraph agent returned no messages."
+        )
+
+    final_message = messages[-1]
+
+    content = final_message.content
 
     if not content:
         raise RuntimeError(
-            "Groq returned an empty response."
+            "LangGraph agent returned an empty response."
         )
 
     return content
@@ -351,46 +395,75 @@ async def run_agent(
 
 async def stream_agent(
     message: str,
-    history: list[dict] | None = None,
+    history: list[dict] | None,
+    db: AsyncSession,
+    current_user: User,
 ) -> AsyncGenerator[tuple[str, str], None]:
-    """
-    Stream the assistant response.
-
-    Yields:
-
-        ("delta", text)
-        ("done", full_response)
-
-    The chat router can continue using the existing SSE format.
-    """
 
     if not _is_aviation_related(message, history):
         yield ("delta", OFF_TOPIC_RESPONSE)
         yield ("done", OFF_TOPIC_RESPONSE)
         return
 
-    client = _client()
-
-    stream = await client.chat.completions.create(
-        model=settings.groq_model,
-        messages=_build_messages(message, history),
-        temperature=0.2,
-        stream=True,
+    agent = _build_agent(
+        db=db,
+        current_user=current_user,
     )
 
     full_response = ""
 
-    async for chunk in stream:
-        if not chunk.choices:
-            continue
+    async for event in agent.astream_events(
+        {
+            "messages": _build_messages(
+                message,
+                history,
+            )
+        },
+        version="v2",
+    ):
 
-        delta = chunk.choices[0].delta.content
+        event_type = event.get("event")
 
-        if not delta:
-            continue
+        if event_type == "on_chat_model_stream":
 
-        full_response += delta
+            chunk = event.get("data", {}).get("chunk")
 
-        yield ("delta", delta)
+            if chunk is None:
+                continue
+
+            content = chunk.content
+
+            if not content:
+                continue
+
+            if isinstance(content, list):
+                text_parts = []
+
+                for item in content:
+                    if isinstance(item, str):
+                        text_parts.append(item)
+                    elif isinstance(item, dict):
+                        text_value = item.get("text")
+
+                        if text_value:
+                            text_parts.append(text_value)
+
+                delta = "".join(text_parts)
+
+            else:
+                delta = str(content)
+
+            if not delta:
+                continue
+
+            full_response += delta
+
+            yield ("delta", delta)
+
+        elif event_type == "on_tool_start":
+
+            tool_name = event.get("name", "")
+
+            yield ("tool_call", tool_name)
 
     yield ("done", full_response)
