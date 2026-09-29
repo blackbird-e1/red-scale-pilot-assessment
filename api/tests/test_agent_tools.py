@@ -12,6 +12,7 @@ def make_record(
     assessment_id=None,
     pilot_id=None,
     findings=None,
+    telemetry=None,
 ):
     assessment_id = assessment_id or uuid4()
     pilot_id = pilot_id or uuid4()
@@ -57,6 +58,7 @@ def make_record(
         visual_observations=None,
         risk_score=13.0,
         overall_rating="Excellent",
+        telemetry=telemetry or [],
     )
 
 
@@ -123,6 +125,7 @@ async def test_get_assessment_preserves_findings_and_evidence():
         assessment_id=assessment_id,
         pilot_id=pilot_id,
         findings=findings,
+        telemetry=[],
     )
 
     user = make_user(user_id=pilot_id)
@@ -357,4 +360,209 @@ async def test_assessment_history_preserves_order():
     assert (
         payload["assessments"][1]["id"]
         == str(older.id)
+    )
+
+@pytest.mark.asyncio
+async def test_get_replay_evidence_returns_event_and_telemetry():
+    assessment_id = uuid4()
+    pilot_id = uuid4()
+
+    findings = [
+        {
+            "behaviour_id": "OB-4.1",
+            "behaviour_name": "Flight path control",
+            "status": "deviation",
+            "severity": "medium",
+            "explanation": (
+                "Bank angle exceeded the prototype threshold."
+            ),
+            "evidence": [
+                {
+                    "metric": "max_bank_angle_deg",
+                    "value": 34.0,
+                    "timestamp_sec": 42.5,
+                    "duration_sec": 700.0,
+                }
+            ],
+        }
+    ]
+
+    telemetry = [
+        {
+            "timestamp_sec": 40.0,
+            "altitude_ft": 5000.0,
+            "indicated_airspeed_knots": 120.0,
+            "pitch_deg": 5.0,
+            "roll_deg": 20.0,
+            "vertical_speed_fpm": 100.0,
+            "bank_angle_deg": 20.0,
+            "throttle_percent": 45.0,
+        },
+        {
+            "timestamp_sec": 42.5,
+            "altitude_ft": 5050.0,
+            "indicated_airspeed_knots": 122.0,
+            "pitch_deg": 6.0,
+            "roll_deg": 34.0,
+            "vertical_speed_fpm": 120.0,
+            "bank_angle_deg": 34.0,
+            "throttle_percent": 47.0,
+        },
+        {
+            "timestamp_sec": 45.0,
+            "altitude_ft": 5100.0,
+            "indicated_airspeed_knots": 121.0,
+            "pitch_deg": 5.5,
+            "roll_deg": 25.0,
+            "vertical_speed_fpm": 90.0,
+            "bank_angle_deg": 25.0,
+            "throttle_percent": 46.0,
+        },
+    ]
+
+    record = make_record(
+        assessment_id=assessment_id,
+        pilot_id=pilot_id,
+        findings=findings,
+        telemetry=telemetry,
+    )
+
+    user = make_user(
+        user_id=pilot_id,
+    )
+
+    db = FakeDB(record=record)
+
+    tools = build_red_scale_tools(
+        db=db,
+        current_user=user,
+    )
+
+    get_replay_evidence = tools[3]
+
+    result = await get_replay_evidence.ainvoke(
+        {
+            "assessment_id": str(assessment_id),
+        }
+    )
+
+    payload = json.loads(result)
+
+    assert payload["assessment_id"] == str(
+        assessment_id
+    )
+
+    assert payload["event_count"] == 1
+
+    event = payload["events"][0]
+
+    assert event["timestamp_sec"] == 42.5
+    assert event["severity"] == "medium"
+
+    assert (
+        event["behaviour_id"]
+        == "OB-4.1"
+    )
+
+    assert (
+        event["evidence"]["metric"]
+        == "max_bank_angle_deg"
+    )
+
+    assert (
+        event["evidence"]["value"]
+        == 34.0
+    )
+
+    assert len(
+        event["telemetry_context"]
+    ) == 3
+
+@pytest.mark.asyncio
+async def test_trainee_cannot_access_another_trainees_replay():
+    owner_id = uuid4()
+    other_user_id = uuid4()
+
+    record = make_record(
+        pilot_id=owner_id,
+    )
+
+    user = make_user(
+        user_id=other_user_id,
+    )
+
+    db = FakeDB(record=record)
+
+    tools = build_red_scale_tools(
+        db=db,
+        current_user=user,
+    )
+
+    get_replay_evidence = tools[3]
+
+    result = await get_replay_evidence.ainvoke(
+        {
+            "assessment_id": str(record.id),
+        }
+    )
+
+    payload = json.loads(result)
+
+    assert (
+        payload["error"]
+        == "Assessment not found or not accessible."
+    )
+
+@pytest.mark.asyncio
+async def test_get_replay_evidence_rejects_invalid_uuid():
+    user = make_user()
+
+    db = FakeDB()
+
+    tools = build_red_scale_tools(
+        db=db,
+        current_user=user,
+    )
+
+    get_replay_evidence = tools[3]
+
+    result = await get_replay_evidence.ainvoke(
+        {
+            "assessment_id": "not-a-uuid",
+        }
+    )
+
+    payload = json.loads(result)
+
+    assert (
+        payload["error"]
+        == "Invalid assessment ID."
+    )
+
+@pytest.mark.asyncio
+async def test_get_replay_evidence_returns_not_found():
+    user = make_user()
+
+    db = FakeDB(
+        record=None,
+    )
+
+    tools = build_red_scale_tools(
+        db=db,
+        current_user=user,
+    )
+
+    get_replay_evidence = tools[3]
+
+    result = await get_replay_evidence.ainvoke(
+        {
+            "assessment_id": str(uuid4()),
+        }
+    )
+
+    payload = json.loads(result)
+
+    assert (
+        payload["error"]
+        == "Assessment not found."
     )

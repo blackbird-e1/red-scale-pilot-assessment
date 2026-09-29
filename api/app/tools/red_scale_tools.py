@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.assessment_record import AssessmentRecord
 from app.models.user import User, UserRole
-
+from app.services.pilot_dna import build_pilot_dna
+from app.replay.service import build_replay_dataset
 
 def _build_evidence_payload(
     record: AssessmentRecord,
@@ -318,7 +319,253 @@ def build_red_scale_tools(
             default=str,
         )
 
+    @tool
+    async def get_my_pilot_dna() -> str:
+        """
+        Retrieve the authenticated trainee's deterministic Pilot DNA.
+
+        Use this tool when the user asks about:
+
+        - whether they are improving
+        - recurring weaknesses
+        - recurring behaviours
+        - performance trends
+        - changes across flights
+        - longitudinal pilot performance
+
+        Pilot DNA is derived from persisted Red Scale assessment
+        history using the deterministic Pilot DNA service.
+
+        Do not calculate trends, recurring behaviours, or scores
+        independently. Treat the returned Pilot DNA as authoritative.
+        """
+
+        if current_user.role != UserRole.TRAINEE:
+            return json.dumps(
+                {
+                    "error": (
+                        "Pilot DNA is available "
+                        "for trainee assessment history."
+                    )
+                }
+            )
+
+        result = await db.execute(
+            select(AssessmentRecord)
+            .where(
+                AssessmentRecord.pilot_id
+                == current_user.id
+            )
+            .order_by(
+                AssessmentRecord.created_at.asc()
+            )
+        )
+
+        records = result.scalars().all()
+
+        if not records:
+            return json.dumps(
+                {
+                    "pilot_id": str(current_user.id),
+                    "assessment_count": 0,
+                    "pilot_dna": None,
+                    "message": (
+                        "No assessment history is available "
+                        "to build Pilot DNA."
+                    ),
+                }
+            )
+
+        try:
+            pilot_dna = build_pilot_dna(records)
+
+        except Exception as exc:
+            return json.dumps(
+                {
+                    "error": (
+                        "Unable to build Pilot DNA."
+                    ),
+                    "details": str(exc),
+                }
+            )
+
+        return json.dumps(
+            {
+                "pilot_id": str(current_user.id),
+                "assessment_count": len(records),
+                "pilot_dna": pilot_dna,
+                "source": (
+                    "deterministic Red Scale "
+                    "Pilot DNA service"
+                ),
+            },
+            default=str,
+        )
+
+    @tool
+    async def get_replay_evidence(
+        assessment_id: str,
+    ) -> str:
+        """
+        Retrieve replay evidence for a specific flight assessment.
+
+        Use this tool when the user asks:
+
+        - why a finding occurred
+        - what happened during a flagged event
+        - what the aircraft was doing at the time of a finding
+        - for telemetry or replay evidence
+        - for the flight context around a benchmark finding
+
+        The deterministic benchmark remains authoritative.
+
+        This tool provides replay evidence and telemetry context.
+        It does not create or recalculate assessment findings.
+        """
+
+        try:
+            parsed_id = UUID(assessment_id)
+
+        except ValueError:
+            return json.dumps(
+                {
+                    "error": (
+                        "Invalid assessment ID."
+                    )
+                }
+            )
+
+        result = await db.execute(
+            select(AssessmentRecord).where(
+                AssessmentRecord.id == parsed_id
+            )
+        )
+
+        record = result.scalar_one_or_none()
+
+        if record is None:
+            return json.dumps(
+                {
+                    "error": (
+                        "Assessment not found."
+                    )
+                }
+            )
+
+        # ---------------------------------------------------------
+        # Authorization
+        # ---------------------------------------------------------
+
+        if current_user.role == UserRole.TRAINEE:
+
+            if record.pilot_id != current_user.id:
+                return json.dumps(
+                    {
+                        "error": (
+                            "Assessment not found "
+                            "or not accessible."
+                        )
+                    }
+                )
+
+        # ---------------------------------------------------------
+        # Build replay dataset
+        # ---------------------------------------------------------
+
+        try:
+            replay = build_replay_dataset(record)
+
+        except Exception as exc:
+            return json.dumps(
+                {
+                    "error": (
+                        "Unable to build replay evidence."
+                    ),
+                    "details": str(exc),
+                }
+            )
+
+        # ---------------------------------------------------------
+        # Build compact telemetry context around each event
+        # ---------------------------------------------------------
+
+        telemetry = replay.telemetry
+
+        events = []
+
+        for event in replay.events:
+
+            timestamp = event.timestamp_sec
+
+            nearby_points = sorted(
+                telemetry,
+                key=lambda point: abs(
+                    point.timestamp_sec - timestamp
+                ),
+            )[:5]
+
+            nearby_points.sort(
+                key=lambda point: point.timestamp_sec,
+            )
+
+            events.append(
+                {
+                    "timestamp_sec": event.timestamp_sec,
+                    "type": event.type,
+                    "label": event.label,
+                    "severity": event.severity,
+                    "competency_id": (
+                        event.competency_id
+                    ),
+                    "competency_name": (
+                        event.competency_name
+                    ),
+                    "behaviour_id": (
+                        event.behaviour_id
+                    ),
+                    "behaviour_name": (
+                        event.behaviour_name
+                    ),
+                    "evidence": (
+                        event.evidence.model_dump()
+                        if event.evidence
+                        else None
+                    ),
+                    "telemetry_context": [
+                        point.model_dump()
+                        for point in nearby_points
+                    ],
+                }
+            )
+
+        return json.dumps(
+            {
+                "assessment_id": str(
+                    replay.assessment_id
+                ),
+                "pilot_id": str(
+                    replay.pilot_id
+                ),
+                "source_filename": (
+                    replay.source_filename
+                ),
+                "duration_sec": (
+                    replay.duration_sec
+                ),
+                "event_count": len(events),
+                "events": events,
+                "source": (
+                    "deterministic Red Scale "
+                    "replay evidence"
+                ),
+            },
+            default=str,
+        )
+
+
     return [
         get_my_assessment_history,
         get_assessment,
+        get_my_pilot_dna,
+        get_replay_evidence,
     ]

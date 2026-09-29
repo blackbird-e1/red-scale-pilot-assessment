@@ -357,6 +357,16 @@ async def get_assessment(
         "avg_throttle_percent": record.avg_throttle_percent,
     }
 
+    if record.benchmark is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "This assessment was created before the current "
+                "benchmark format was introduced and does not contain "
+                "authoritative benchmark data."
+            ),
+        )
+
     return AssessmentDetail(
         id=record.id,
         pilot_id=record.pilot_id,
