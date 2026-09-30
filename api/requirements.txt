@@ -44,3 +44,5 @@ python-jose[cryptography]==3.4.0
 langgraph
 langchain-groq
 pytest-asyncio
+
+networkx

@@ -145,15 +145,11 @@ export interface StreamChunk {
 export interface AssessmentHistoryItem {
   id: string;
   created_at: string;
-
   source_filename: string;
-
   benchmark_id: string;
   benchmark_version: string;
-
-  risk_score: number;
-  overall_rating: OverallRating;
-
+  risk_score: number | null;
+  overall_rating: string | null;
   duration_sec: number;
   max_speed_knots: number;
   max_bank_angle_deg: number;

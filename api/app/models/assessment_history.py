@@ -13,8 +13,8 @@ class AssessmentHistoryItem(BaseModel):
     benchmark_id: str
     benchmark_version: str
 
-    risk_score: float
-    overall_rating: str
+    risk_score: float | None = None
+    overall_rating: str | None = None
 
     duration_sec: float
     max_speed_knots: float

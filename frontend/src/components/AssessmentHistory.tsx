@@ -130,11 +130,11 @@ export default function AssessmentHistory({
 
               <div className="flex items-center gap-3">
                 <span className="rounded-full border border-[#e10600]/30 bg-[#1a1212] px-3 py-1 text-xs font-semibold text-red-300">
-                  {assessment.overall_rating}
+                  {assessment.overall_rating ?? 'Not scored'}
                 </span>
 
                 <span className="text-xs text-gray-500">
-                  Risk {assessment.risk_score}
+                  Risk {assessment.risk_score ?? '—'}
                 </span>
               </div>
             </div>
