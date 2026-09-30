@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.agent import run_agent
 from app.database import AsyncSessionLocal
 from app.models.user import User, UserRole
-
+from app.agent import _is_aviation_related
 
 async def get_test_user(db):
     result = await db.execute(
@@ -222,4 +222,52 @@ async def test_agent_latest_findings():
             "none were recorded",
             "no recorded",
         )
+    )
+
+@pytest.mark.asyncio
+async def test_agent_rejects_off_topic_question():
+    answer = await run_agent(
+        message="What is the best programming language?",
+        history=None,
+        db=None,
+        current_user=None,
+    )
+
+    assert answer == (
+        "I can only help with aviation, flight assessment, pilot training, "
+        "aircraft operations, or mission-related questions."
+    )
+
+def test_contextual_follow_up_is_recognized_as_aviation():
+    history = [
+        {
+            "role": "user",
+            "content": "What findings were recorded on my latest flight?",
+        },
+        {
+            "role": "assistant",
+            "content": "The assessment recorded a bank-angle finding.",
+        },
+    ]
+
+    assert _is_aviation_related(
+        "Why was that recorded?",
+        history,
+    )
+
+def test_ambiguous_follow_up_without_aviation_context_is_rejected():
+    history = [
+        {
+            "role": "user",
+            "content": "What is Python?",
+        },
+        {
+            "role": "assistant",
+            "content": "Python is a programming language.",
+        },
+    ]
+
+    assert not _is_aviation_related(
+        "Why is that?",
+        history,
     )

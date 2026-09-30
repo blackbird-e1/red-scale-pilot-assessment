@@ -190,6 +190,8 @@ FOLLOW_UP_PATTERNS = (
     "what happened because of this",
     "what happened because of that",
     "what happened around",
+    "why was this recorded",
+    "why was that recorded",
 )
 
 
@@ -381,20 +383,6 @@ AGENTIC DEBRIEF WORKFLOW:
     debrief. Do not provide a premature conclusion and then continue
     gathering evidence.
 
-IMPORTANT AGENT BEHAVIOUR:
-
-You have access to Red Scale tools.
-
-Use a tool when the user's question requires specific Red Scale
-assessment data.
-
-Do not guess data that could have been retrieved from a tool.
-
-When a tool returns assessment data, treat that data as authoritative.
-
-Explain conclusions using the retrieved evidence.
-
-Never modify data through a tool.
 """.strip()
 
 
