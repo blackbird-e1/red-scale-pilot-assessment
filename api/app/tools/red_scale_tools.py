@@ -9,6 +9,9 @@ from app.models.assessment_record import AssessmentRecord
 from app.models.user import User, UserRole
 from app.services.pilot_dna import build_pilot_dna
 from app.replay.service import build_replay_dataset
+from app.services.graph_similarity_service import (
+    find_similar_assessments_for_pilot,
+)
 
 def _build_evidence_payload(
     record: AssessmentRecord,
@@ -562,10 +565,111 @@ def build_red_scale_tools(
             default=str,
         )
 
+    @tool
+    async def get_similar_flights(
+        assessment_id: str,
+        top_k: int = 3,
+    ) -> str:
+        """
+        Find historical flights that have similar
+        graph-derived performance patterns to a
+        specific assessment.
+
+        Use this tool when the user asks about:
+
+        - similar previous flights
+        - flights with similar findings
+        - historical flights with similar performance patterns
+        - how a flight compares structurally with previous flights
+
+        The similarity is a graph-derived signal based on
+        persisted Red Scale assessment findings and
+        competency relationships.
+
+        This tool does not create or modify assessment scores.
+        """
+
+        if current_user.role != UserRole.TRAINEE:
+            return json.dumps(
+                {
+                    "error": (
+                        "Similar flight analysis is "
+                        "available for trainee "
+                        "assessment history."
+                    )
+                }
+            )
+
+        try:
+            parsed_id = UUID(assessment_id)
+
+        except ValueError:
+            return json.dumps(
+                {
+                    "error": (
+                        "Invalid assessment ID."
+                    )
+                }
+            )
+
+        if top_k < 1 or top_k > 10:
+            return json.dumps(
+                {
+                    "error": (
+                        "top_k must be between "
+                        "1 and 10."
+                    )
+                }
+            )
+
+        try:
+            results = (
+                await find_similar_assessments_for_pilot(
+                    db=db,
+                    pilot_id=current_user.id,
+                    assessment_id=parsed_id,
+                    top_k=top_k,
+                )
+            )
+
+        except ValueError as exc:
+            return json.dumps(
+                {
+                    "error": str(exc),
+                }
+            )
+
+        except Exception:
+            return json.dumps(
+                {
+                    "error": (
+                        "Unable to calculate "
+                        "similar flight analysis."
+                    )
+                }
+            )
+
+        return json.dumps(
+            {
+                "assessment_id": assessment_id,
+                "method": (
+                    "graph-based flight "
+                    "similarity"
+                ),
+                "similar_flights": results,
+                "source": (
+                    "Red Scale deterministic "
+                    "assessment graph"
+                ),
+            },
+            default=str,
+        )
+
 
     return [
         get_my_assessment_history,
         get_assessment,
         get_my_pilot_dna,
         get_replay_evidence,
+        get_similar_flights,
     ]

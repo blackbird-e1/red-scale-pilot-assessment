@@ -566,3 +566,118 @@ async def test_get_replay_evidence_returns_not_found():
         payload["error"]
         == "Assessment not found."
     )
+
+@pytest.mark.asyncio
+async def test_get_similar_flights_returns_graph_similarity():
+
+    user_id = uuid4()
+
+    flight_a = make_record(
+        pilot_id=user_id,
+        findings=[
+            {
+                "behaviour_id": "OB-4.1",
+                "behaviour_name": "Flight path control",
+                "status": "deviation",
+                "severity": "medium",
+                "explanation": "Test finding.",
+                "evidence": [],
+            },
+            {
+                "behaviour_id": "OB-4.2",
+                "behaviour_name": "Flight path monitoring",
+                "status": "attention",
+                "severity": "low",
+                "explanation": "Test finding.",
+                "evidence": [],
+            },
+        ],
+    )
+
+    flight_b = make_record(
+        pilot_id=user_id,
+        findings=[
+            {
+                "behaviour_id": "OB-4.1",
+                "behaviour_name": "Flight path control",
+                "status": "deviation",
+                "severity": "medium",
+                "explanation": "Test finding.",
+                "evidence": [],
+            },
+            {
+                "behaviour_id": "OB-4.2",
+                "behaviour_name": "Flight path monitoring",
+                "status": "attention",
+                "severity": "low",
+                "explanation": "Test finding.",
+                "evidence": [],
+            },
+        ],
+    )
+
+    flight_c = make_record(
+        pilot_id=user_id,
+        findings=[
+            {
+                "behaviour_id": "OB-5.1",
+                "behaviour_name": "Workload management",
+                "status": "attention",
+                "severity": "low",
+                "explanation": "Test finding.",
+                "evidence": [],
+            }
+        ],
+    )
+
+    user = make_user(
+        user_id=user_id,
+    )
+
+    db = FakeDB(
+        records=[
+            flight_a,
+            flight_b,
+            flight_c,
+        ]
+    )
+
+    tools = build_red_scale_tools(
+        db=db,
+        current_user=user,
+    )
+
+    # New tool is the fifth tool.
+    get_similar_flights = tools[4]
+
+    result = await get_similar_flights.ainvoke(
+        {
+            "assessment_id": str(flight_a.id),
+            "top_k": 2,
+        }
+    )
+
+    payload = json.loads(result)
+
+    assert payload["assessment_id"] == str(
+        flight_a.id
+    )
+
+    assert (
+        payload["method"]
+        == "graph-based flight similarity"
+    )
+
+    assert len(
+        payload["similar_flights"]
+    ) == 2
+
+    assert (
+        payload["similar_flights"][0]["flight_id"]
+        == f"flight:{flight_b.id}"
+    )
+
+    assert (
+        payload["similar_flights"][0]["similarity"]
+        > payload["similar_flights"][1]["similarity"]
+    )

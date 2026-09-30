@@ -111,6 +111,7 @@ async def test_agent_specific_finding():
             "no bank angle",
             "did not flag",
             "didn't flag",
+            "no competency or behaviour findings",
         )
     )
 
