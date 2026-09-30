@@ -28,7 +28,13 @@ export default function PilotDNA({ pilotId }: PilotDNAProps) {
 
         const data = await getPilotDNA(pilotId);
 
-        setDna(data);
+        setDna({
+          ...data,
+          risk_history: data.risk_history ?? [],
+          strengths: data.strengths ?? [],
+          weaknesses: data.weaknesses ?? [],
+          recurring_violations: data.recurring_violations ?? [],
+        });
       } catch (err) {
         if (err instanceof Error) {
           setError(err.message);
