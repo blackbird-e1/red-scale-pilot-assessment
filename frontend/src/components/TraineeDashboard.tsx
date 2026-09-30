@@ -67,7 +67,7 @@ export default function TraineeDashboard({
               </p>
 
               <p className="mt-3 text-2xl font-semibold text-white">
-                {assessments.length > 0
+                {assessments.length > 0 && assessments[0].risk_score != null
                   ? assessments[0].risk_score.toFixed(2)
                   : '—'}
               </p>
@@ -83,7 +83,7 @@ export default function TraineeDashboard({
               </p>
 
               <p className="mt-3 text-2xl font-semibold text-white">
-                {assessments.length > 0
+                {assessments.length > 0 && assessments[0].overall_rating != null
                   ? assessments[0].overall_rating
                   : '—'}
               </p>

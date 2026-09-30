@@ -316,9 +316,13 @@ export default function AssessmentResults({
     telemetry,
   } = assessment;
 
+  const safeViolations = violations ?? [];
+  const safeVisualObservations = visual_observations ?? [];
+  const safeRiskScore = risk_score ?? 0;
+
   const riskPercentage = Math.max(
     0,
-    Math.min(100, risk_score),
+    Math.min(100, safeRiskScore),
   );
 
   return (
@@ -380,10 +384,10 @@ export default function AssessmentResults({
 
               <div>
                 <p className="text-sm text-gray-300">
-                  {violations.length === 0
+                  {safeViolations.length === 0
                     ? 'No rule violations detected'
-                    : `${violations.length} rule violation${
-                        violations.length === 1 ? '' : 's'
+                    : `${safeViolations.length} rule violation${
+                        safeViolations.length === 1 ? '' : 's'
                       } detected`}
                 </p>
 
@@ -402,7 +406,7 @@ export default function AssessmentResults({
                 </span>
 
                 <span className="text-xs font-semibold text-white">
-                  {formatNumber(risk_score)}
+                  {formatNumber(safeRiskScore)}
                 </span>
               </div>
 
@@ -429,7 +433,7 @@ export default function AssessmentResults({
           <div className="mt-2 flex items-baseline gap-2">
 
             <span className="text-5xl font-bold tracking-tight text-white">
-              {formatNumber(risk_score)}
+              {formatNumber(safeRiskScore)}
             </span>
 
             <span className="text-sm text-gray-600">
@@ -627,7 +631,7 @@ export default function AssessmentResults({
           </p>
         </div>
 
-        {visual_observations.length === 0 ? (
+        {safeVisualObservations.length === 0 ? (
           <div className="rounded-3xl border border-[#292929] bg-[#111111] p-7">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#303030] bg-[#171717] text-gray-500">
@@ -647,7 +651,7 @@ export default function AssessmentResults({
           </div>
         ) : (
           <div className="grid gap-3">
-            {visual_observations.map((observation, index) => (
+            {safeVisualObservations.map((observation, index) => (
               <div
                 key={`${observation.category}-${index}`}
                 className="rounded-2xl border border-[#292929] bg-[#111111] p-5"
@@ -716,8 +720,7 @@ export default function AssessmentResults({
 
         </div>
 
-        {violations.length === 0 ? (
-
+        {safeViolations.length === 0 ? (
           <div className="rounded-3xl border border-emerald-500/20 bg-[#101614] p-7">
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -750,7 +753,7 @@ export default function AssessmentResults({
 
           <div className="space-y-3">
 
-            {violations.map((violation) => (
+            {safeViolations.map((violation) => (
               <div
                 key={`${violation.rule_id}-${violation.rule_name}`}
                 className="rounded-2xl border border-[#292929] bg-[#111111] p-5"
