@@ -84,6 +84,11 @@ class Settings(BaseSettings):
         alias="JWT_EXPIRE_MINUTES",
     )
 
+    admin_email: str | None = Field(
+        default=None,
+        alias="ADMIN_EMAIL",
+    )
+
     # Google Authentication
     google_client_id: str = Field(
         ...,

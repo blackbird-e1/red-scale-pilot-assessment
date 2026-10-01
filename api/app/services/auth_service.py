@@ -1,8 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.user import User, UserRole
-
 
 async def get_user_by_google_id(
     db: AsyncSession,
@@ -32,17 +32,31 @@ async def get_or_create_google_user(
         user.name = name
         user.avatar_url = avatar_url
 
+        if (
+            settings.admin_email
+            and email.strip().lower() == settings.admin_email.strip().lower()
+        ):
+            user.role = UserRole.ADMIN
+
         await db.commit()
         await db.refresh(user)
 
         return user
+
+    role = UserRole.TRAINEE
+
+    if (
+        settings.admin_email
+        and email.strip().lower() == settings.admin_email.strip().lower()
+    ):
+        role = UserRole.ADMIN
 
     user = User(
         google_id=google_id,
         email=email,
         name=name,
         avatar_url=avatar_url,
-        role=UserRole.TRAINEE,
+        role=role,
     )
 
     db.add(user)
