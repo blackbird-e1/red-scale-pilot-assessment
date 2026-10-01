@@ -1,290 +1,707 @@
 # Red Scale
 
-## AI Pilot Debrief & Assessment System
+## AI-Powered Pilot Performance Assessment & Debriefing Platform
 
-Red Scale is an AI-assisted pilot assessment and mission debriefing system that transforms flight recorder data into structured performance assessments, operational risk indicators, and natural-language debriefs.
+**Red Scale turns flight data into objective pilot performance insights,
+risk indicators, longitudinal performance intelligence, and
+instructor-ready debriefs.**
 
-The system is designed around a simple principle:
+Instead of forcing an instructor to manually inspect large amounts of
+flight telemetry, Red Scale creates a structured workflow:
 
-> **Deterministic assessment first. AI interpretation second.**
-
-Flight telemetry is parsed into measurable flight characteristics, evaluated against explicit assessment rules, converted into a deterministic risk assessment, and then presented through an AI-assisted debrief interface.
-
----
-
-## Overview
-
-Red Scale provides a structured workflow for analysing flight performance:
-
-```text
-Flight Data Recorder CSV
-          ↓
-       Parser
-          ↓
-   Feature Extraction
-          ↓
-   Deterministic Rules
-          ↓
-     Risk Assessment
-          ↓
-      AI Debrief
+``` text
+Flight Data
+    ↓
+Performance Assessment
+    ↓
+Risk & Findings
+    ↓
+Pilot DNA / Longitudinal Insights
+    ↓
+Graph-Based Relationships
+    ↓
+AI-Assisted Debrief
 ```
 
-The deterministic assessment engine remains authoritative for the actual assessment result.
+The goal is simple:
 
-The AI assistant is used to explain aviation concepts, interpret available assessment information, and support the debriefing process. It does not determine or override the underlying assessment result.
+> **Help instructors understand what happened in a flight, why it
+> matters, and how pilot performance is changing over time.**
 
----
+------------------------------------------------------------------------
 
-## Current MVP
+# Why Red Scale?
 
-The current MVP supports:
+Flight training generates valuable data, but turning that data into
+useful training feedback can be time-consuming.
 
-* Flight Data Recorder CSV ingestion
-* Flight telemetry parsing
-* Flight performance feature extraction
-* Deterministic rule evaluation
-* SOP-oriented flight assessment
-* Risk scoring
-* Overall flight rating
-* Rule violation detection
-* AI-assisted mission debriefing
-* Aviation-focused conversational assistance
-* Streaming AI responses through Server-Sent Events
+A typical flight can contain thousands of telemetry observations. An
+instructor needs to identify the important events, understand whether
+they represent meaningful performance issues, compare them with previous
+flights, and then communicate the findings to the trainee.
 
-The system currently focuses on the assessment of measurable flight behaviour from uploaded flight data.
+Red Scale is designed to turn that process into a repeatable digital
+workflow.
 
----
+### From this:
 
-## Assessment Pipeline
+> "Here is a flight CSV. Something happened during the flight. Let's
+> manually inspect it."
 
-### 1. Flight Data
+### To this:
 
-The user uploads a Flight Data Recorder (FDR) CSV containing flight telemetry.
+> "Here is the objective assessment, the detected findings, the risk
+> profile, how this flight compares with previous performance, and an
+> AI-assisted explanation for the debrief."
 
-The uploaded data forms the evidence base for the assessment.
+------------------------------------------------------------------------
 
----
+# Core Principle
 
-### 2. Data Parsing
+## Deterministic Assessment First. AI Interpretation Second.
 
-The backend parses the uploaded flight data and converts the raw telemetry into a structured representation suitable for analysis.
+This is one of the most important design decisions in Red Scale.
 
----
+The system does **not** ask an LLM to decide whether a pilot violated an
+assessment threshold.
 
-### 3. Feature Extraction
+Instead:
 
-Red Scale derives flight-performance characteristics from the telemetry.
+``` text
+Flight telemetry
+      ↓
+Measured flight characteristics
+      ↓
+Explicit assessment rules
+      ↓
+Deterministic findings
+      ↓
+Risk assessment
+      ↓
+AI explanation / debrief
+```
 
-Current assessment features include parameters such as:
+The deterministic assessment engine remains the source of truth.
 
-* Flight duration
-* Maximum altitude
-* Minimum altitude
-* Maximum airspeed
-* Maximum bank angle
-* Maximum pitch
-* Minimum pitch
-* Maximum climb rate
-* Maximum descent rate
+The AI layer helps people understand the result.
 
-These features provide the measurable basis for the subsequent rule evaluation.
+This separation makes the system easier to inspect, test, explain, and
+improve.
 
----
+------------------------------------------------------------------------
 
-### 4. Deterministic Rule Evaluation
+# What Red Scale Does
 
-The extracted features are evaluated against configured assessment thresholds.
+## 1. Flight Data Assessment
 
-Current rules include checks for:
+An instructor can upload flight recorder / telemetry data and generate a
+structured assessment.
 
-| Assessment Area | Rule                   |
-| --------------- | ---------------------- |
-| Bank angle      | Excessive bank angle   |
-| Pitch           | Excessive pitch-up     |
-| Pitch           | Excessive pitch-down   |
-| Climb           | Excessive climb rate   |
-| Descent         | Excessive descent rate |
-| Airspeed        | High airspeed          |
+The system currently processes measurable flight behaviour including:
 
-The rule engine produces explicit violations containing information such as:
+-   Flight duration
+-   Maximum altitude
+-   Minimum altitude
+-   Maximum airspeed
+-   Average airspeed
+-   Maximum pitch
+-   Minimum pitch
+-   Roll / bank behaviour
+-   Maximum bank angle
+-   Maximum climb rate
+-   Maximum descent rate
+-   Average throttle
+-   Telemetry over the flight
 
-* Rule ID
-* Rule name
-* Severity
-* Explanation
-* Expected value
-* Actual value
+The raw data becomes structured performance evidence.
 
-This layer is deterministic and does not depend on an LLM.
+------------------------------------------------------------------------
 
----
+# 2. Deterministic Flight Assessment
 
-## Risk Assessment
+Red Scale evaluates extracted flight characteristics against explicit
+assessment rules.
 
-Detected rule violations are converted into an overall risk assessment.
+Current assessment areas include:
 
-The assessment engine produces:
+  Area         Example Finding
+  ------------ ------------------------
+  Bank angle   Excessive bank angle
+  Pitch        Excessive pitch-up
+  Pitch        Excessive pitch-down
+  Climb        Excessive climb rate
+  Descent      Excessive descent rate
+  Airspeed     High airspeed
 
-* Overall rating
-* Risk score
-* Risk level
-* Number of detected violations
-* Individual rule violations
-* Extracted flight characteristics
+Each finding can contain:
+
+-   Rule ID
+-   Rule name
+-   Severity
+-   Explanation
+-   Expected value
+-   Actual value
+
+This provides a traceable basis for the assessment rather than relying
+on an opaque AI judgement.
+
+------------------------------------------------------------------------
+
+# 3. Risk Assessment
+
+Detected findings are converted into an overall flight assessment.
+
+Red Scale can produce:
+
+-   Risk score
+-   Risk level
+-   Overall flight rating
+-   Number of findings
+-   Individual rule violations
+-   Extracted flight characteristics
+-   Benchmark information
 
 The AI assistant does not modify these values.
 
-The deterministic assessment engine is the source of truth for the assessment.
+------------------------------------------------------------------------
 
----
+# 4. Pilot DNA
 
-## AI Debrief
+A single flight is useful.
 
-Once an assessment has been generated, Red Scale provides an AI-assisted interface for interpreting the results.
+A history of flights is much more useful.
 
-The AI layer can explain:
+Red Scale therefore includes **Pilot DNA**, a longitudinal view of pilot
+performance derived from assessment history.
 
-* Flight assessment concepts
-* Telemetry parameters
-* Altitude
-* Airspeed
-* Pitch
-* Roll
-* Bank angle
-* Climb and descent rates
-* SOP concepts
-* Pilot training concepts
-* Mission debrief concepts
-* Risk assessment concepts
-* General aviation operations
-* Aircraft and aviation systems
+Instead of looking at every flight as an isolated event, the system can
+build a picture of:
 
-When discussing a specific flight, the assistant is instructed to use only the assessment information available in the conversation.
+-   Repeated performance patterns
+-   Historical assessment behaviour
+-   Risk progression
+-   Recurring findings
+-   Changes across flights
+-   Longitudinal pilot characteristics
 
-It must not invent:
+The goal is to help answer questions such as:
 
-* Flight data
-* SOP violations
-* Aircraft specifications
-* Pilot identity
-* Aircraft type
-* Mission circumstances
-* Weather conditions
-* Operational events
+> "Is this pilot improving?"
 
-The AI layer is therefore an **explanation and debriefing interface**, not the assessment authority.
+> "What problems keep appearing?"
 
----
+> "Which areas should an instructor focus on?"
 
-## Aviation-Only Assistant
+Pilot DNA turns individual assessments into a longer-term training
+perspective.
 
-The Red Scale side assistant is intentionally scoped to aviation and flight-related topics.
+------------------------------------------------------------------------
 
-It is designed to assist with questions involving areas such as:
+# 5. Graph-Based Performance Intelligence
 
-* Aviation
-* Aircraft
-* Flight operations
-* Piloting
-* Flight assessment
-* Flight telemetry
-* Pilot training
-* Aircraft systems
-* Aviation safety
-* Flight procedures
-* SOPs
-* Navigation
-* Air traffic control
-* Mission planning
-* Mission debriefing
-* Operational risk
+Red Scale also includes a lightweight graph-based intelligence layer.
 
-Unrelated general-purpose questions are outside the scope of the assistant.
+The system models relationships between entities such as:
 
----
+``` text
+Pilot
+  ↓
+Flight
+  ↓
+Assessment
+  ↓
+Finding
+  ↓
+Competency
+  ↓
+Event
+```
 
-## Architecture
+This allows Red Scale to reason about relationships rather than treating
+every assessment as an isolated record.
 
-Red Scale consists of three primary layers.
+The graph layer is intended to support questions such as:
 
-### Deterministic Assessment Engine
+-   Which previous flights are similar to the latest flight?
+-   Which findings repeatedly occur together?
+-   Which competencies are associated with recurring findings?
+-   What relationships exist across a pilot's assessment history?
 
-Responsible for:
+The Graph ML / knowledge-graph layer is deliberately focused on
+providing useful relationship-aware signals rather than replacing the
+deterministic assessment engine.
 
-* Parsing flight data
-* Extracting features
-* Applying assessment rules
-* Detecting violations
-* Calculating risk
-* Producing the final assessment
+------------------------------------------------------------------------
 
-This layer does not rely on generative AI.
+# 6. AI-Assisted Debriefing
 
-### AI Debrief Layer
+Once an assessment has been generated, Red Scale provides an AI-assisted
+debriefing interface.
 
-A Groq-powered conversational assistant provides natural-language explanations and debrief support.
+The assistant can explain:
 
-The assistant receives the available assessment context and explains it without modifying the underlying result.
+-   Flight assessment concepts
+-   Telemetry parameters
+-   Altitude
+-   Airspeed
+-   Pitch
+-   Roll
+-   Bank angle
+-   Climb and descent rates
+-   SOP concepts
+-   Pilot training concepts
+-   Risk concepts
+-   Mission debrief concepts
+-   General aviation operations
+-   Aircraft and aviation systems
 
-### Web Interface
+For a specific flight, the AI works from the assessment information
+available to it.
 
-The frontend provides a pilot assessment console where users can:
+It is designed to explain the evidence rather than invent new evidence.
 
-1. Upload flight data
-2. Run the assessment
-3. Review extracted flight characteristics
-4. Review detected violations
-5. Review risk and overall rating
-6. Interact with the Red Scale Assistant
+------------------------------------------------------------------------
 
----
+# 7. Aviation-Focused AI Assistant
 
-## Tech Stack
+The Red Scale assistant is intentionally aviation-focused.
 
-| Layer                      | Technology                |
-| -------------------------- | ------------------------- |
-| Language                   | Python 3.12               |
-| Backend                    | FastAPI                   |
-| AI                         | Groq                      |
-| Frontend                   | React + TypeScript        |
-| Build Tool                 | Vite                      |
-| Styling                    | Tailwind CSS              |
-| Data Processing            | Pandas                    |
-| Numerical Computing        | NumPy                     |
-| Machine Learning Utilities | Scikit-learn              |
-| Validation                 | Pydantic                  |
-| Rate Limiting              | SlowAPI                   |
-| API Communication          | HTTP / Server-Sent Events |
-| Containerisation           | Docker                    |
+It is designed for questions involving:
 
----
+-   Aviation
+-   Aircraft
+-   Flight operations
+-   Piloting
+-   Flight assessment
+-   Flight telemetry
+-   Pilot training
+-   Aircraft systems
+-   Aviation safety
+-   Flight procedures
+-   SOPs
+-   Navigation
+-   Air traffic control
+-   Mission planning
+-   Mission debriefing
+-   Operational risk
 
-## Project Structure
+The assistant is not intended to be a general-purpose chatbot.
 
-```text
+------------------------------------------------------------------------
+
+# 8. Flight Replay & Telemetry Visualization
+
+Red Scale includes flight replay capabilities designed to make telemetry
+easier to understand visually.
+
+The replay workflow can connect:
+
+``` text
+Telemetry
+   ↓
+Flight timeline
+   ↓
+Events / violations
+   ↓
+Telemetry interpolation
+   ↓
+Flight visualization
+```
+
+The replay interface includes concepts such as:
+
+-   Play / pause / reset
+-   Flight timeline
+-   Telemetry HUD
+-   Event markers
+-   Altitude profile
+-   Attitude information
+-   Telemetry interpolation
+-   Violation-to-timestamp mapping
+-   3D flight visualization
+
+The purpose is to connect an assessment finding with the moment in the
+flight where it occurred.
+
+------------------------------------------------------------------------
+
+# 9. Trainer & Trainee Workflow
+
+Red Scale is not only an analysis engine. It now includes a basic
+role-based training workflow.
+
+## Trainee
+
+New users can operate as trainees by default.
+
+A trainee can:
+
+-   Access their trainee portal
+-   View their own assessments
+-   View their own performance information
+-   View Pilot DNA
+-   Request trainer access
+
+------------------------------------------------------------------------
+
+## Trainer
+
+A trainer can:
+
+-   Access the trainer console
+-   View trainees
+-   Select a trainee for assessment
+-   Upload flight data
+-   Run flight assessments
+-   Review findings and risk
+-   Review assessment history
+-   Use Pilot DNA
+-   Use AI-assisted debriefing
+-   Delete assessments they created
+
+Trainer access is controlled through the administrator workflow.
+
+------------------------------------------------------------------------
+
+## Administrator
+
+Administrators provide basic organizational access control.
+
+An administrator can:
+
+-   View trainer access requests
+-   Approve trainer requests
+-   Reject trainer requests
+-   View active trainers
+-   Demote a trainer back to trainee
+
+The system therefore supports the basic lifecycle:
+
+``` text
+New User
+   ↓
+Trainee
+   ↓
+Trainer Access Request
+   ↓
+Administrator Approval
+   ↓
+Trainer
+   ↓
+Administrator Demotion
+   ↓
+Trainee
+```
+
+Historical assessment data is preserved when a trainer is demoted.
+
+------------------------------------------------------------------------
+
+# A Complete Training Workflow
+
+A typical instructor workflow looks like this:
+
+``` text
+1. Instructor logs in
+          ↓
+2. Selects a trainee
+          ↓
+3. Uploads flight data
+          ↓
+4. Red Scale parses telemetry
+          ↓
+5. Flight characteristics are extracted
+          ↓
+6. Deterministic assessment rules run
+          ↓
+7. Findings and risk are generated
+          ↓
+8. Assessment is stored
+          ↓
+9. Pilot DNA is updated
+          ↓
+10. Graph relationships can be analyzed
+          ↓
+11. Instructor reviews the flight
+          ↓
+12. AI assists with the debrief
+```
+
+This is the core product loop.
+
+------------------------------------------------------------------------
+
+# What Makes Red Scale Different?
+
+## 1. Evidence Before Interpretation
+
+Red Scale starts with flight evidence.
+
+The system does not begin with an LLM opinion.
+
+``` text
+Evidence
+  ↓
+Assessment
+  ↓
+Interpretation
+```
+
+------------------------------------------------------------------------
+
+## 2. Deterministic Assessment
+
+Safety-relevant assessment logic should be reproducible and traceable.
+
+The underlying assessment is based on explicit rules and measurable
+flight characteristics.
+
+------------------------------------------------------------------------
+
+## 3. AI Where It Adds Value
+
+AI is used primarily for:
+
+-   Explanation
+-   Natural-language interaction
+-   Debrief support
+-   Aviation question answering
+-   Contextual interpretation
+
+AI is not used as the authority for the underlying assessment result.
+
+------------------------------------------------------------------------
+
+## 4. Longitudinal Pilot Intelligence
+
+Red Scale is designed to move beyond:
+
+> "What happened on this flight?"
+
+towards:
+
+> "What does this flight tell us about the pilot's development?"
+
+Pilot DNA and graph-based relationships support this longer-term
+perspective.
+
+------------------------------------------------------------------------
+
+## 5. One Platform for Assessment + Debrief
+
+The system connects:
+
+``` text
+Flight Data
+    +
+Objective Assessment
+    +
+Risk
+    +
+Pilot History
+    +
+Graph Relationships
+    +
+AI Debrief
+```
+
+Instead of treating these as separate tools.
+
+------------------------------------------------------------------------
+
+# Example
+
+Imagine a flight contains an excessive bank-angle event.
+
+Red Scale can follow the chain:
+
+``` text
+Telemetry
+   ↓
+Maximum bank angle detected
+   ↓
+Assessment rule evaluated
+   ↓
+Violation generated
+   ↓
+Risk assessment updated
+   ↓
+Event associated with the flight
+   ↓
+Pilot history updated
+   ↓
+AI explains the finding
+```
+
+The instructor can then use that information during the training
+debrief.
+
+The AI can explain what excessive bank angle means and help structure
+the discussion, while the underlying finding remains tied to the
+deterministic assessment.
+
+------------------------------------------------------------------------
+
+# Product Architecture
+
+At a high level, Red Scale consists of several connected layers.
+
+``` text
+┌─────────────────────────────────────────┐
+│              User Interface             │
+│ React / TypeScript                      │
+└───────────────────┬─────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────────┐
+│             Application API             │
+│ FastAPI                                 │
+│ Authentication / RBAC / Assessment API  │
+└───────────────────┬─────────────────────┘
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+┌───────────────────┐ ┌───────────────────┐
+│ Assessment Engine │ │ AI / Agent Layer  │
+│                   │ │                   │
+│ Parsing           │ │ AI debrief       │
+│ Features          │ │ Aviation chat    │
+│ Rules             │ │ Agent tools      │
+│ Risk              │ │                   │
+└─────────┬─────────┘ └─────────┬─────────┘
+          │                     │
+          └──────────┬──────────┘
+                     ▼
+          ┌─────────────────────┐
+          │ Training Intelligence│
+          │                     │
+          │ Pilot DNA           │
+          │ Knowledge Graph     │
+          │ Graph ML            │
+          │ Flight Replay       │
+          └─────────────────────┘
+```
+
+------------------------------------------------------------------------
+
+# AI Safety & Responsibility Model
+
+Red Scale is deliberately designed so that the AI assistant does not
+become the assessment authority.
+
+The assistant should not invent:
+
+-   Flight data
+-   SOP violations
+-   Aircraft specifications
+-   Pilot identity
+-   Aircraft type
+-   Mission circumstances
+-   Weather conditions
+-   Operational events
+
+The AI should also not replace:
+
+-   Qualified aviation personnel
+-   Aircraft operating manuals
+-   Approved SOPs
+-   Training procedures
+-   Regulatory requirements
+-   Operational decision-making
+
+Red Scale is intended to support instructors and trainees, not replace
+them.
+
+------------------------------------------------------------------------
+
+# Current MVP Capabilities
+
+The current MVP includes:
+
+### Flight Analysis
+
+-   FDR / telemetry CSV ingestion
+-   Flight telemetry parsing
+-   Performance feature extraction
+-   Deterministic rule evaluation
+-   SOP-oriented assessment
+-   Risk scoring
+-   Overall flight rating
+-   Rule violation detection
+
+### Training Intelligence
+
+-   Trainee profiles
+-   Trainer workflow
+-   Assessment history
+-   Pilot DNA
+-   Longitudinal performance analysis
+-   Graph / relationship-aware analysis
+
+### AI
+
+-   Aviation-focused assistant
+-   AI-assisted mission debriefing
+-   Context-aware assessment explanation
+-   Agent/tool integration
+-   Streaming AI responses
+
+### Visualization
+
+-   Flight timeline
+-   Telemetry visualization
+-   Event markers
+-   Altitude profile
+-   Attitude information
+-   Flight replay capabilities
+-   3D visualization components
+
+### Administration
+
+-   Role-based access
+-   Trainee → trainer request workflow
+-   Administrator approval/rejection
+-   Trainer management
+-   Trainer demotion
+
+------------------------------------------------------------------------
+
+# Technology
+
+  Layer                 Technology
+  --------------------- ---------------------------------------
+  Backend               Python / FastAPI
+  Frontend              React / TypeScript
+  Build Tool            Vite
+  Styling               Tailwind CSS
+  Database              PostgreSQL
+  Data Processing       Pandas
+  Numerical Computing   NumPy
+  ML Utilities          Scikit-learn
+  Validation            Pydantic
+  AI                    Groq
+  Agent Orchestration   LangGraph
+  Graph Intelligence    Knowledge Graph / Graph ML components
+  API                   REST / Server-Sent Events
+  Authentication        OAuth / JWT-based role-aware access
+  Containerisation      Docker
+  Testing               Pytest
+
+------------------------------------------------------------------------
+
+# Project Structure
+
+``` text
 red-scale-pilot-assessment/
 │
 ├── api/
 │   ├── app/
 │   │   ├── core/
-│   │   │   ├── ml.py
-│   │   │   └── rules.py
-│   │   │
 │   │   ├── models/
-│   │   │   ├── assessment.py
-│   │   │   ├── flight_features.py
-│   │   │   └── rule_violation.py
-│   │   │
 │   │   ├── routers/
-│   │   │   ├── assessment.py
-│   │   │   ├── debrief.py
-│   │   │   └── chat.py
-│   │   │
 │   │   ├── services/
-│   │   │   ├── assessment_service.py
-│   │   │   └── debrief_service.py
-│   │   │
+│   │   ├── graph/
+│   │   ├── tools/
 │   │   ├── agent.py
 │   │   ├── config.py
 │   │   └── main.py
@@ -309,302 +726,417 @@ red-scale-pilot-assessment/
 └── README.md
 ```
 
----
+------------------------------------------------------------------------
 
-## Getting Started
+# Getting Started
 
-### Prerequisites
+## Prerequisites
 
 Install:
 
-* Python 3.12
-* Node.js
-* npm
-* Docker Desktop (if using the containerised setup)
+-   Python 3.12+
+-   Node.js
+-   npm
+-   Docker Desktop if using the containerised setup
 
----
+------------------------------------------------------------------------
 
 ## 1. Clone the Repository
 
-```bash
+``` bash
 git clone https://github.com/blackbird-e1/red-scale-pilot-assessment.git
 
 cd red-scale-pilot-assessment
 ```
 
----
+------------------------------------------------------------------------
 
 ## 2. Configure the API
 
-Move into the API directory:
-
-```bash
+``` bash
 cd api
 ```
 
 Create the environment file:
 
-```bash
+``` bash
 cp .env.example .env
 ```
 
-Configure the required Groq credentials:
+Configure the required AI credentials:
 
-```env
+``` env
 GROQ_API_KEY=your_groq_api_key
 GROQ_MODEL=openai/gpt-oss-120b
 ```
 
-Additional configuration options are available in the example environment file.
+Additional configuration is available in the example environment file.
 
----
+------------------------------------------------------------------------
 
 ## 3. Install Backend Dependencies
 
 Create a virtual environment:
 
-```bash
+``` bash
 python -m venv .venv
 ```
 
-Activate it.
-
 ### Windows
 
-```powershell
+``` powershell
 .venv\Scripts\Activate.ps1
 ```
 
 ### Linux / macOS
 
-```bash
+``` bash
 source .venv/bin/activate
 ```
 
 Install dependencies:
 
-```bash
+``` bash
 pip install -r requirements.txt
 ```
 
----
+------------------------------------------------------------------------
 
 ## 4. Start the API
 
 From the `api` directory:
 
-```bash
+``` bash
 uvicorn app.main:app --reload
 ```
 
-The API will run on:
+The API runs at:
 
-```text
+``` text
 http://localhost:8000
 ```
 
-During development, API documentation is available at:
+Interactive API documentation:
 
-```text
+``` text
 http://localhost:8000/docs
 ```
 
----
+------------------------------------------------------------------------
 
 ## 5. Start the Frontend
 
-Open another terminal and move into the frontend:
+Open another terminal:
 
-```bash
+``` bash
 cd frontend
 ```
 
 Install dependencies:
 
-```bash
+``` bash
 npm install
 ```
 
 Start the development server:
 
-```bash
+``` bash
 npm run dev
 ```
 
-The frontend will normally be available at:
+The frontend normally runs at:
 
-```text
+``` text
 http://localhost:5173
 ```
 
----
+------------------------------------------------------------------------
 
-## API
+# API Overview
 
-The backend exposes endpoints for flight assessment, debriefing, health checks, and conversational assistance.
+The backend exposes APIs for authentication, assessment, training
+workflows, debriefing, and conversational assistance.
 
-### Health
+Representative endpoints include:
 
-```http
-GET /health
-```
+``` text
+GET  /health
 
-### Flight Assessment
-
-```http
 POST /api/v1/assessment
-```
+GET  /api/v1/assessment/pilot/{pilot_id}
+GET  /api/v1/assessment/{assessment_id}
+DELETE /api/v1/assessment/{assessment_id}
 
-Used to submit flight data and generate an assessment.
-
-### Debrief
-
-```http
 POST /api/v1/debrief
-```
 
-Used to generate an AI-assisted interpretation of an assessment.
-
-### Chat
-
-```http
 POST /api/v1/chat
-```
-
-Used for non-streaming aviation assistant responses.
-
-### Streaming Chat
-
-```http
 POST /api/v1/chat/stream
 ```
 
-Provides Server-Sent Events for real-time assistant responses.
+Trainer-access management includes:
 
----
+``` text
+POST /api/v1/trainer-requests
+GET  /api/v1/trainer-requests/me
 
-## Example Assessment Flow
+GET  /api/v1/admin/trainer-requests
+POST /api/v1/admin/trainer-requests/{request_id}/approve
+POST /api/v1/admin/trainer-requests/{request_id}/reject
 
-A typical assessment follows this sequence:
-
-```text
-Upload FDR CSV
-      ↓
-Parse telemetry
-      ↓
-Extract flight features
-      ↓
-Evaluate deterministic rules
-      ↓
-Detect violations
-      ↓
-Calculate risk
-      ↓
-Generate assessment
-      ↓
-Explain through AI debrief
+GET  /api/v1/admin/trainers
+POST /api/v1/admin/users/{user_id}/demote
 ```
 
-For example, if the extracted telemetry contains a maximum bank angle above the configured threshold, the deterministic rule engine can produce an excessive-bank-angle violation.
+------------------------------------------------------------------------
 
-The AI assistant can then explain what excessive bank angle means operationally without changing the underlying violation.
+# Security & Access Model
 
----
+Red Scale uses role-aware access control.
 
-## Design Principles
+The current role model is:
 
-### Deterministic First
+``` text
+ADMIN
+  │
+  ├── Manage trainer access
+  └── Manage trainer roles
 
-Safety-relevant assessment decisions should be reproducible and traceable.
+TRAINER
+  │
+  ├── Assess trainees
+  ├── Review assessments
+  └── Perform trainer operations
 
-The assessment engine therefore uses explicit rules rather than asking an LLM to decide whether a flight violated an assessment threshold.
-
-### Evidence Before Interpretation
-
-The system derives assessment findings from the uploaded flight data.
-
-The AI layer interprets the resulting evidence rather than creating evidence.
-
-### AI as an Assistant
-
-The AI component is intended to improve the usability of assessment results through explanation and debriefing.
-
-It does not replace:
-
-* Qualified aviation personnel
-* Aircraft operating manuals
-* Official SOPs
-* Training procedures
-* Regulatory requirements
-* Operational decision-making
-
-### Separation of Responsibilities
-
-The system separates:
-
-```text
-Telemetry
-   ↓
-Deterministic Assessment
-   ↓
-Assessment Result
-   ↓
-AI Interpretation
+TRAINEE
+  │
+  ├── View own training information
+  └── Request trainer access
 ```
 
-This separation makes the assessment pipeline easier to inspect, test, and improve independently of the language model.
+Assessment permissions are also role-aware.
 
----
+For example:
 
-## Current Limitations
+-   Trainers can create assessments.
+-   Trainers can delete assessments they created.
+-   Administrators can manage assessment access.
+-   Trainees cannot create assessments.
+-   Trainees are restricted to their own assessment information.
 
-The current MVP is intentionally limited.
+------------------------------------------------------------------------
 
-Current limitations include:
+# Design Philosophy
 
-* Authentication and authorization are not yet implemented.
-* Assessment rules are currently configured as deterministic thresholds.
-* The system currently accepts FDR CSV data as its primary input.
-* Mission logs and additional operational data sources are planned but not yet active.
-* The AI assistant is explanatory and does not independently validate real-world operational conditions.
-* The system should not be treated as an operational flight-safety system without appropriate validation, certification, and integration with approved aviation procedures.
+## Deterministic First
 
-Do not deploy the system publicly until appropriate access controls and production security measures are in place.
+Safety-relevant assessment decisions should be reproducible and
+traceable.
 
----
+------------------------------------------------------------------------
 
-## Roadmap
+## Evidence Before Interpretation
 
-Planned development areas include:
+Assessment findings should come from flight evidence.
 
-* Authentication and authorization
-* Pilot and instructor accounts
-* Assessment history
-* Persistent flight records
-* Mission and training profiles
-* Configurable SOP/rule sets
-* Additional flight-data formats
-* Richer telemetry visualisation
-* Comparative pilot performance analysis
-* Training progression tracking
-* Instructor review workflows
-* Expanded mission intelligence
-* Production deployment and security hardening
+The AI layer interprets the resulting evidence rather than creating
+evidence.
 
----
+------------------------------------------------------------------------
 
-## Disclaimer
+## AI as an Assistant
 
-Red Scale is an experimental AI-assisted flight assessment and debriefing system.
+AI should improve the usability of information without becoming the
+authority for the underlying assessment.
 
-It is intended for research, development, demonstration, and training-oriented use.
+------------------------------------------------------------------------
 
-It is **not** a certified aviation safety system and should not be used as a substitute for qualified aviation personnel, approved aircraft documentation, official SOPs, regulatory requirements, or operational decision-making.
+## Human-in-the-Loop
 
-Assessment results are generated from the configured rules and the supplied flight data and should be independently reviewed before being used for any real-world training or operational purpose.
+Qualified instructors remain part of the decision-making process.
 
----
+Red Scale is designed to help instructors make training information
+easier to understand and act upon.
 
-## License
+------------------------------------------------------------------------
+
+# Current Scope
+
+Red Scale is intentionally focused.
+
+The current product is centered on:
+
+``` text
+Flight Assessment
+        +
+Pilot Performance Intelligence
+        +
+Instructor Debriefing
+```
+
+It is **not currently intended to be a complete flight-school ERP**.
+
+Features such as:
+
+-   Billing
+-   Scheduling
+-   Fleet management
+-   Account deactivation
+-   Account deletion
+-   Broader school administration
+
+are outside the current core product scope.
+
+They can be added later if real customer requirements justify them.
+
+This keeps the product focused on its primary value: **pilot performance
+intelligence and training debriefing.**
+
+------------------------------------------------------------------------
+
+# Roadmap
+
+Future development can focus on increasing the depth and reliability of
+the core product rather than simply adding administrative modules.
+
+Potential areas include:
+
+-   Production deployment
+-   Security hardening
+-   Stronger auditability
+-   More configurable assessment rule sets
+-   Additional flight-data formats
+-   Richer flight visualization
+-   More advanced comparative pilot analysis
+-   Expanded Pilot DNA insights
+-   More advanced graph-based analysis
+-   Training progression analytics
+-   Instructor workflow improvements
+-   Additional mission intelligence
+-   Validation with real-world aviation training data
+-   Integration with approved training workflows
+
+------------------------------------------------------------------------
+
+# What Red Scale Is --- and Is Not
+
+### Red Scale is:
+
+-   A pilot performance assessment platform
+-   A flight-data analysis system
+-   A training intelligence platform
+-   An instructor debriefing tool
+-   An AI-assisted aviation interface
+-   A longitudinal pilot performance system
+
+### Red Scale is not:
+
+-   A certified flight-safety system
+-   An autonomous flight-control system
+-   A replacement for a qualified instructor
+-   A replacement for aircraft manuals
+-   A replacement for approved SOPs
+-   A replacement for regulatory requirements
+-   An autonomous operational decision-maker
+
+------------------------------------------------------------------------
+
+# Demonstration Story
+
+For an instructor or flight school, the simplest Red Scale demonstration
+is:
+
+``` text
+                    LOGIN
+                      ↓
+                 Select Trainee
+                      ↓
+                Upload Flight
+                      ↓
+             Run Assessment
+                      ↓
+        ┌─────────────┴─────────────┐
+        ↓                           ↓
+   Flight Findings              Risk Score
+        │                           │
+        └─────────────┬─────────────┘
+                      ↓
+                 Pilot DNA
+                      ↓
+             Graph Relationships
+                      ↓
+                 AI Debrief
+                      ↓
+             Instructor Discussion
+```
+
+The product story is therefore not:
+
+> "We built another chatbot."
+
+It is:
+
+> **"We built a system that turns flight data into structured training
+> intelligence."**
+
+------------------------------------------------------------------------
+
+# Vision
+
+Red Scale is being developed toward a future where flight training is
+increasingly supported by objective, data-driven performance
+intelligence.
+
+The long-term vision is to connect:
+
+``` text
+Flight Data
+     +
+Objective Assessment
+     +
+Pilot History
+     +
+Training Context
+     +
+Relationship Intelligence
+     +
+AI-Assisted Debrief
+```
+
+into one continuous training intelligence platform.
+
+The goal is not to remove the instructor from the loop.
+
+The goal is to give the instructor **better evidence, better context,
+and better tools for the debrief.**
+
+------------------------------------------------------------------------
+
+# Disclaimer
+
+Red Scale is an experimental AI-assisted flight assessment and
+debriefing system intended for research, development, demonstration, and
+training-oriented use.
+
+It is **not a certified aviation safety system** and must not be used as
+a substitute for:
+
+-   Qualified aviation personnel
+-   Approved aircraft documentation
+-   Official SOPs
+-   Regulatory requirements
+-   Training procedures
+-   Operational decision-making
+
+Assessment results are generated from configured rules and supplied
+flight data and should be independently reviewed before being used for
+real-world training or operational purposes.
+
+Any future operational deployment should undergo appropriate aviation
+validation, security review, testing, and integration with approved
+procedures.
+
+------------------------------------------------------------------------
+
+# License
 
 This project is licensed under the MIT License.
