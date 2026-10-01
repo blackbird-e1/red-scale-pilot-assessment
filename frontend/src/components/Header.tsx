@@ -2,7 +2,7 @@ interface HeaderProps {
   onNewAssessment: () => void;
   hasAssessment: boolean;
   username: string;
-  role: 'trainer' | 'trainee';
+  role: 'admin' | 'trainer' | 'trainee';
   onLogout: () => void;
 }
 

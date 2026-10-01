@@ -51,6 +51,69 @@ async def get_trainer_requests(
         for request in requests
     ]
 
+@router.get(
+    "/trainers",
+    status_code=status.HTTP_200_OK,
+)
+async def get_trainers(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(User)
+        .where(User.role == UserRole.TRAINER)
+        .order_by(User.name.asc())
+    )
+
+    trainers = result.scalars().all()
+
+    return [
+        {
+            "id": str(trainer.id),
+            "name": trainer.name,
+            "email": trainer.email,
+            "role": trainer.role.value,
+        }
+        for trainer in trainers
+    ]
+
+@router.post(
+    "/users/{user_id}/demote",
+    status_code=status.HTTP_200_OK,
+)
+async def demote_trainer(
+    user_id: UUID,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(User).where(User.id == user_id)
+    )
+
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found.",
+        )
+
+    if user.role != UserRole.TRAINER:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only trainers can be demoted.",
+        )
+
+    user.role = UserRole.TRAINEE
+
+    await db.commit()
+    await db.refresh(user)
+
+    return {
+        "message": "Trainer demoted to trainee.",
+        "user_id": str(user.id),
+        "role": user.role.value,
+    }
 
 @router.post(
     "/trainer-requests/{request_id}/approve",

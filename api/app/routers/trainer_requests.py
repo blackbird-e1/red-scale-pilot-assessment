@@ -61,7 +61,6 @@ async def create_trainer_request(
         "created_at": trainer_request.created_at,
     }
 
-
 @router.get(
     "/me",
     status_code=status.HTTP_200_OK,
@@ -79,6 +78,18 @@ async def get_my_trainer_request(
     trainer_request = result.scalars().first()
 
     if not trainer_request:
+        return {
+            "has_request": False,
+            "request": None,
+        }
+
+    # An approved request belongs to the previous trainer role.
+    # If the user has since been demoted to trainee, allow them
+    # to request trainer access again.
+    if (
+        current_user.role == UserRole.TRAINEE
+        and trainer_request.status == TrainerRequestStatus.APPROVED
+    ):
         return {
             "has_request": False,
             "request": None,

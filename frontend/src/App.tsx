@@ -16,6 +16,7 @@ import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
 import PilotDNA from './components/PilotDNA';
 import AutonomousFlightAssessment from './components/AutonomousFlightAssessment';
+import AdminDashboard from './components/AdminDashboard';
 
 const CAPABILITIES = [
   {
@@ -218,6 +219,22 @@ export default function App() {
         onLogin={handleLogin}
         onTryAutonomy={() => setShowAutonomy(true)}
       />
+    );
+  }
+
+  if (auth.role === 'admin') {
+    return (
+      <div className="flex min-h-full flex-col bg-[#0c0c0c]">
+        <Header
+          onNewAssessment={handleNewAssessment}
+          hasAssessment={false}
+          username={auth.name}
+          role={auth.role}
+          onLogout={handleLogout}
+        />
+
+        <AdminDashboard />
+      </div>
     );
   }
 
