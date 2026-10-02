@@ -36,6 +36,7 @@ google-auth==2.40.3
 
 python-jose[cryptography]==3.4.0
 langgraph
+langchain
 langchain-groq
 pytest-asyncio
 
