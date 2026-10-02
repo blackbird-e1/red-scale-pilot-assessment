@@ -388,6 +388,56 @@ async def get_assessment(
     response_model=PilotDNA,
     status_code=status.HTTP_200_OK,
 )
+
+@router.delete(
+    "/{assessment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+
+async def delete_assessment(
+    assessment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """
+    Delete an assessment.
+
+    Admins can delete any assessment.
+    Trainers can delete assessments they created.
+    Trainees cannot delete assessments.
+    """
+
+    result = await db.execute(
+        select(AssessmentRecord).where(
+            AssessmentRecord.id == assessment_id
+        )
+    )
+
+    record = result.scalar_one_or_none()
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assessment not found.",
+        )
+
+    if current_user.role == UserRole.TRAINEE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Trainees cannot delete assessments.",
+        )
+
+    if (
+        current_user.role == UserRole.TRAINER
+        and record.created_by != current_user.id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete assessments you created.",
+        )
+
+    await db.delete(record)
+    await db.commit()
 async def get_pilot_dna(
     pilot_id: UUID,
     current_user: User = Depends(get_current_user),

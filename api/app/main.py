@@ -3,7 +3,6 @@ Red Scale FastAPI application entry point.
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
@@ -21,6 +20,8 @@ from app.routers.chat import router as chat_router
 from app.routers.auth import router as auth_router
 from app.replay.router import router as replay_router
 from app.tornado.router import router as tornado_router
+from app.routers.trainer_requests import router as trainer_requests_router
+from app.routers.admin import router as admin_router
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -43,8 +44,6 @@ async def lifespan(app: FastAPI):
     """
     Application startup and shutdown lifecycle.
     """
-
-    os.makedirs(settings.fastf1_cache_dir, exist_ok=True)
 
     logger.info(
         "Red Scale API starting up — env=%s model=%s",
@@ -155,5 +154,15 @@ app.include_router(
 
 app.include_router(
     tornado_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    trainer_requests_router,
+    prefix="/api/v1",
+)
+
+app.include_router(
+    admin_router,
     prefix="/api/v1",
 )

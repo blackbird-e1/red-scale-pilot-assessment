@@ -1,8 +1,11 @@
 import type { Message } from '../types';
 
 const TOOL_LABELS: Record<string, string> = {
-  aviation_knowledge: 'Searching aviation knowledge',
-  f1_knowledge: 'Searching aviation knowledge',
+  get_assessment: 'Retrieving assessment',
+  get_my_assessment_history: 'Retrieving assessment history',
+  get_my_pilot_dna: 'Analyzing Pilot DNA',
+  get_replay_evidence: 'Retrieving replay evidence',
+  get_similar_flights: 'Finding similar flights',
 };
 
 interface ChatMessageProps {

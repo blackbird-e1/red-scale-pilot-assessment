@@ -16,6 +16,7 @@ import { AUTH_EVENTS } from './api/client';
 import TraineeDashboard from './components/TraineeDashboard';
 import PilotDNA from './components/PilotDNA';
 import AutonomousFlightAssessment from './components/AutonomousFlightAssessment';
+import AdminDashboard from './components/AdminDashboard';
 
 const CAPABILITIES = [
   {
@@ -221,9 +222,25 @@ export default function App() {
     );
   }
 
+  if (auth.role === 'admin') {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#0c0c0c]">
+        <Header
+          onNewAssessment={handleNewAssessment}
+          hasAssessment={false}
+          username={auth.name}
+          role={auth.role}
+          onLogout={handleLogout}
+        />
+
+        <AdminDashboard />
+      </div>
+    );
+  }
+
   if (auth.role === 'trainee') {
     return (
-      <div className="flex min-h-full flex-col bg-[#0c0c0c]">
+      <div className="flex min-h-screen flex-col bg-[#0c0c0c]">
         <Header
           onNewAssessment={handleNewAssessment}
           hasAssessment={false}
@@ -243,7 +260,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-full flex-col bg-[#0c0c0c]">
+    <div className="flex min-h-screen flex-col bg-[#0c0c0c]">
       <Header
         onNewAssessment={handleNewAssessment}
         hasAssessment={assessment !== null}
@@ -500,22 +517,21 @@ export default function App() {
                 ))}
               </div>
             </section>
-
-            {/* Footer positioning */}
-            <footer className="mt-10 border-t border-[#202020] pt-6 text-center">
-              <p className="text-[10px] uppercase tracking-[0.25em] text-gray-700">
-                Red Scale · Pilot Assessment Console
-              </p>
-
-              <p className="mt-2 text-xs text-gray-700">
-                Deterministic flight assessment with AI-assisted mission
-                debriefing
-              </p>
-            </footer>
           </div>
         )}
       </main>
       <ChatAssistant />
+
+      <footer className="border-t border-[#202020] px-5 py-6 text-center">
+        <p className="text-[10px] uppercase tracking-[0.25em] text-gray-700">
+          Red Scale · Pilot Assessment Console
+        </p>
+
+        <p className="mt-2 text-xs text-gray-700">
+          Deterministic flight assessment with AI-assisted mission
+          debriefing
+        </p>
+      </footer>
     </div>
   );
 }

@@ -30,28 +30,6 @@ class Settings(BaseSettings):
         alias="DATABASE_QUERY_TIMEOUT",
     )
 
-    # pgvector / RAG
-    embedding_model: str = Field(
-        "text-embedding-3-small",
-        alias="EMBEDDING_MODEL",
-    )
-    rag_top_k: int = Field(
-        5,
-        alias="RAG_TOP_K",
-    )
-
-    # Redis
-    redis_url: str = Field(
-        "redis://localhost:6379/0",
-        alias="REDIS_URL",
-    )
-
-    # FastF1
-    fastf1_cache_dir: str = Field(
-        ".fastf1_cache",
-        alias="FASTF1_CACHE_DIR",
-    )
-
     # API
     api_host: str = Field(
         "0.0.0.0",
@@ -82,6 +60,11 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = Field(
         60,
         alias="JWT_EXPIRE_MINUTES",
+    )
+
+    admin_email: str | None = Field(
+        default=None,
+        alias="ADMIN_EMAIL",
     )
 
     # Google Authentication

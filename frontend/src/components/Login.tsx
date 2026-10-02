@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { loginWithGoogle, type LoginResponse } from '../api/auth';
 
@@ -13,6 +13,21 @@ export default function Login({
 }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showContact, setShowContact] = useState(false);
+
+  useEffect(() => {
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setShowContact(false);
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, []);
 
   async function handleGoogleSuccess(credential: string) {
     setError('');
@@ -472,12 +487,79 @@ export default function Login({
           </div>
         </section>
 
+        {/* About / Contact */}
+        <section className="py-6 text-center">
+          <button
+            type="button"
+            onClick={() => setShowContact(true)}
+            className="rounded-xl border border-[#333333] bg-[#111111] px-6 py-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-400 transition-all hover:border-[#e10600]/60 hover:bg-[#171111] hover:text-white"
+          >
+            About / Contact
+          </button>
+        </section>
+
+
         {/* Footer */}
         <footer className="pb-5 pt-2 text-center">
           <p className="text-[9px] uppercase tracking-[0.25em] text-gray-800">
             Red Scale · Pilot Assessment Console
           </p>
         </footer>
+
+        {showContact && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-5 backdrop-blur-sm"
+            onClick={() => setShowContact(false)}
+          >
+            <div
+              className="relative w-full max-w-md rounded-2xl border border-[#2b2b2b] bg-[#111111] p-6 shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setShowContact(false)}
+                className="absolute right-4 top-4 text-xl leading-none text-gray-600 transition-colors hover:text-white"
+                aria-label="Close"
+              >
+                ×
+              </button>
+
+              <div className="pr-8">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#e10600]">
+                  Red Scale
+                </p>
+
+                <h2 className="mt-2 text-xl font-semibold text-white">
+                  About Red Scale
+                </h2>
+
+                <p className="mt-4 text-sm leading-6 text-gray-400">
+                  AI-assisted pilot assessment, flight debriefing, and
+                  mission intelligence.
+                </p>
+
+                <p className="mt-4 text-sm leading-6 text-gray-500">
+                  Red Scale helps pilots and instructors turn recorded
+                  flight data into structured assessment evidence,
+                  actionable debriefs, and longitudinal insight.
+                </p>
+
+                <div className="mt-6 border-t border-[#252525] pt-5">
+                  <p className="text-[9px] uppercase tracking-[0.18em] text-gray-600">
+                    Interested in learning more or testing Red Scale?
+                  </p>
+
+                  <a
+                    href="mailto:bluelock.sr71@gmail.com"
+                    className="mt-2 inline-block text-sm text-gray-300 transition-colors hover:text-[#e10600]"
+                  >
+                    bluelock.sr71@gmail.com
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

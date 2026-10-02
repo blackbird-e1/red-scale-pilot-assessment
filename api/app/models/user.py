@@ -10,9 +10,9 @@ from app.models.base import Base
 
 
 class UserRole(str, Enum):
+    ADMIN = "admin"
     TRAINER = "trainer"
     TRAINEE = "trainee"
-
 
 class User(Base):
     __tablename__ = "users"

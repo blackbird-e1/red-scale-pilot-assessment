@@ -8,7 +8,7 @@ from app.models.base import Base
 from app.models.user import User
 
 from app.models.assessment_record import AssessmentRecord
-
+from app.models.trainer_request import TrainerRequest
 config = context.config
 
 

@@ -1,7 +1,6 @@
 import { authenticatedFetch } from './client';
 
-export type UserRole = 'trainer' | 'trainee';
-
+export type UserRole = 'admin' | 'trainer' | 'trainee';
 export interface LoginResponse {
   access_token: string;
   token_type: string;
