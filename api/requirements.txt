@@ -41,3 +41,5 @@ langchain-groq
 pytest-asyncio
 
 networkx
+
+alembic
