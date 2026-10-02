@@ -34,7 +34,7 @@ async def chat(
     db: AsyncSession = Depends(get_db),
 ) -> ChatResponse:
     """
-    Send a message to the F1 agent and receive a complete answer.
+    Send a message to the Red Scale AI assistant and receive a complete answer.
 
     Requires authentication.
     """
@@ -68,7 +68,7 @@ async def chat_stream(
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """
-    Stream the F1 agent's response as Server-Sent Events.
+    Stream the Red Scale AI assistant's response as Server-Sent Events.
 
     Requires authentication.
 

@@ -3,7 +3,6 @@ Red Scale FastAPI application entry point.
 """
 
 import logging
-import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, status
@@ -45,8 +44,6 @@ async def lifespan(app: FastAPI):
     """
     Application startup and shutdown lifecycle.
     """
-
-    os.makedirs(settings.fastf1_cache_dir, exist_ok=True)
 
     logger.info(
         "Red Scale API starting up — env=%s model=%s",
