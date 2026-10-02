@@ -19,7 +19,13 @@ async def health() -> HealthResponse:
     components: dict[str, str] = {}
 
     try:
-        conn = await asyncpg.connect(settings.database_url)
+        database_url = settings.database_url.replace(
+            "postgresql+asyncpg://",
+            "postgresql://",
+            1,
+        )
+
+        conn = await asyncpg.connect(database_url)
         await conn.execute("SELECT 1")
         await conn.close()
         components["postgres"] = "ok"
