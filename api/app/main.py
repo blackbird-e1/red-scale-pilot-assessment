@@ -65,8 +65,8 @@ app = FastAPI(
     description="AI-powered pilot assessment and debriefing system.",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url=None if settings.is_production else "/docs",
-    redoc_url=None if settings.is_production else "/redoc",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 
@@ -90,7 +90,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.api_cors_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
