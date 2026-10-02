@@ -168,6 +168,13 @@ async def test_agent_longitudinal_debrief():
             "not supported",
             "no evidence",
             "no specific",
+            "no prior",
+            "no recent flight assessments",
+            "assessment history is empty",
+            "no assessment records",
+            "without prior assessment data",
+            "cannot determine",
+            "can't determine",
         )
     )
 
