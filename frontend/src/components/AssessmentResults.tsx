@@ -10,6 +10,7 @@ import type {
 interface AssessmentResultsProps {
   assessment: Assessment;
   fileName: string;
+  showDebrief?: boolean;
 }
 
 function formatNumber(value: number, decimals = 1): string {
@@ -248,64 +249,73 @@ function StatusStep({
 export default function AssessmentResults({
   assessment,
   fileName,
+  showDebrief = true,
 }: AssessmentResultsProps) {
   const [debrief, setDebrief] = useState<DebriefResponse | null>(null);
   const [debriefLoading, setDebriefLoading] = useState(true);
   const [debriefError, setDebriefError] = useState<string | null>(null);
 
-    useEffect(() => {
-        let cancelled = false;
+  useEffect(() => {
+    let cancelled = false;
 
-        async function generateDebrief() {
-        setDebriefLoading(true);
-        setDebriefError(null);
+    if (!showDebrief) {
+      setDebrief(null);
+      setDebriefError(null);
+      setDebriefLoading(false);
 
-        try {
-            const response = await fetch(
-              '/api/v1/debrief',
-            {
-                method: 'POST',
-                headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                },
-                body: JSON.stringify(assessment),
-            },
-            );
-
-            if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(
-                `Debrief request failed (${response.status}): ${errorText}`,
-            );
-            }
-
-            const data: DebriefResponse = await response.json();
-
-            if (!cancelled) {
-            setDebrief(data);
-            }
-        } catch (error) {
-            if (!cancelled) {
-            setDebriefError(
-                error instanceof Error
-                ? error.message
-                : 'Unable to generate AI debrief.',
-            );
-            }
-        } finally {
-            if (!cancelled) {
-            setDebriefLoading(false);
-            }
-        }
-        }
-
-        generateDebrief();
-
-        return () => {
+      return () => {
         cancelled = true;
-        };
-    }, [assessment]);
+      };
+    }
+
+    async function generateDebrief() {
+      setDebriefLoading(true);
+      setDebriefError(null);
+
+      try {
+        const response = await fetch('/api/v1/debrief', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(assessment),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+
+          throw new Error(
+            `Debrief request failed (${response.status}): ${errorText}`,
+          );
+        }
+
+        const data: DebriefResponse = await response.json();
+
+        if (!cancelled) {
+          setDebrief(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDebriefError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to generate AI debrief.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setDebriefLoading(false);
+        }
+      }
+    }
+
+    generateDebrief();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessment, showDebrief]);
   const {
     features,
     benchmark,
@@ -829,189 +839,179 @@ export default function AssessmentResults({
       </section>
 
 
-            {/* AI debrief */}
-      <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#e10600]/25 bg-[#151010] p-6 sm:p-8">
-        <div className="relative">
-          <div className="flex items-center gap-2">
-            <span className="text-[#e10600]">✦</span>
+      {/* AI debrief */}
+      {showDebrief && (
+        <section className="relative mt-6 overflow-hidden rounded-3xl border border-[#e10600]/25 bg-[#151010] p-6 sm:p-8">
+          <div className="relative">
+            <div className="flex items-center gap-2">
+              <span className="text-[#e10600]">✦</span>
 
-            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#e10600]">
-              AI Mission Intelligence
-            </p>
-          </div>
-
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-white">
-                Mission Debrief
-              </h2>
-
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
-                AI-generated interpretation of the deterministic flight
-                assessment. Risk score and overall rating remain determined
-                by the assessment engine.
+              <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#e10600]">
+                AI Mission Intelligence
               </p>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-white">
+                  Mission Debrief
+                </h2>
+
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">
+                  AI-generated interpretation of the deterministic flight
+                  assessment. Risk score and overall rating remain determined
+                  by the assessment engine.
+                </p>
+              </div>
+
+              {debriefLoading && (
+                <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-red-400">
+                  Generating...
+                </span>
+              )}
+
+              {!debriefLoading && debrief && (
+                <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
+                  Analysis Complete
+                </span>
+              )}
             </div>
 
             {debriefLoading && (
-              <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-red-400">
-                Generating...
-              </span>
+              <div className="mt-7 grid gap-4">
+                <div className="animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
+                  <div className="h-2 w-28 rounded bg-[#292020]" />
+                  <div className="mt-4 h-3 w-full rounded bg-[#211a1a]" />
+                  <div className="mt-2 h-3 w-5/6 rounded bg-[#211a1a]" />
+                  <div className="mt-2 h-3 w-2/3 rounded bg-[#211a1a]" />
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="h-32 animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111]" />
+                  <div className="h-32 animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111]" />
+                  <div className="h-32 animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111]" />
+                </div>
+              </div>
             )}
 
-            {!debriefLoading && debrief && (
-              <span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-emerald-400">
-                Analysis Complete
-              </span>
+            {!debriefLoading && debriefError && (
+              <div className="mt-7 rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
+                <p className="text-sm font-semibold text-red-300">
+                  AI debrief unavailable
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-gray-500">
+                  The deterministic assessment is still valid. The AI layer
+                  could not generate its interpretation.
+                </p>
+
+                <p className="mt-3 font-mono text-[10px] leading-5 text-red-400/70">
+                  {debriefError}
+                </p>
+              </div>
+            )}
+
+            {!debriefLoading && !debriefError && debrief && (
+              <div className="mt-7 space-y-4">
+                {/* Summary */}
+                <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+                    Flight Summary
+                  </p>
+
+                  <p className="mt-3 text-sm leading-7 text-gray-300">
+                    {debrief.summary}
+                  </p>
+                </div>
+
+                {/* Findings / Concerns / Recommendations */}
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+                      Key Findings
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+                      {debrief.key_findings.length === 0 ? (
+                        <p className="text-xs text-gray-600">
+                          No additional findings were identified.
+                        </p>
+                      ) : (
+                        debrief.key_findings.map((finding, index) => (
+                          <div
+                            key={`finding-${index}`}
+                            className="flex gap-3"
+                          >
+                            <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-400" />
+
+                            <p className="text-xs leading-5 text-gray-400">
+                              {finding}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+                      Areas of Concern
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+                      {debrief.areas_of_concern.length === 0 ? (
+                        <p className="text-xs text-emerald-400/80">
+                          No areas of concern identified.
+                        </p>
+                      ) : (
+                        debrief.areas_of_concern.map((concern, index) => (
+                          <div
+                            key={`concern-${index}`}
+                            className="flex gap-3"
+                          >
+                            <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#e10600]" />
+
+                            <p className="text-xs leading-5 text-gray-400">
+                              {concern}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
+                      Recommendations
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+                      {debrief.recommendations.length === 0 ? (
+                        <p className="text-xs text-gray-600">
+                          No additional recommendations were generated.
+                        </p>
+                      ) : (
+                        debrief.recommendations.map((recommendation, index) => (
+                          <div
+                            key={`recommendation-${index}`}
+                            className="flex gap-3"
+                          >
+                            <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#e10600]" />
+
+                            <p className="text-xs leading-5 text-gray-400">
+                              {recommendation}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
-
-          {debriefLoading && (
-            <div className="mt-7 grid gap-4">
-              <div className="animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
-                <div className="h-2 w-28 rounded bg-[#292020]" />
-                <div className="mt-4 h-3 w-full rounded bg-[#211a1a]" />
-                <div className="mt-2 h-3 w-5/6 rounded bg-[#211a1a]" />
-                <div className="mt-2 h-3 w-2/3 rounded bg-[#211a1a]" />
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="h-32 animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111]" />
-                <div className="h-32 animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111]" />
-                <div className="h-32 animate-pulse rounded-2xl border border-[#2a2020] bg-[#171111]" />
-              </div>
-            </div>
-          )}
-
-          {!debriefLoading && debriefError && (
-            <div className="mt-7 rounded-2xl border border-red-500/20 bg-red-500/5 p-5">
-              <p className="text-sm font-semibold text-red-300">
-                AI debrief unavailable
-              </p>
-
-              <p className="mt-2 text-xs leading-5 text-gray-500">
-                The deterministic assessment is still valid. The AI layer
-                could not generate its interpretation.
-              </p>
-
-              <p className="mt-3 font-mono text-[10px] leading-5 text-red-400/70">
-                {debriefError}
-              </p>
-            </div>
-          )}
-
-          {!debriefLoading && !debriefError && debrief && (
-            <div className="mt-7 space-y-4">
-              {/* Summary */}
-              <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
-                <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                  Flight Summary
-                </p>
-
-                <p className="mt-3 text-sm leading-7 text-gray-300">
-                  {debrief.summary}
-                </p>
-              </div>
-
-              {/* Findings / Concerns / Recommendations */}
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                    Key Findings
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    {debrief.key_findings.length === 0 ? (
-                      <p className="text-xs text-gray-600">
-                        No additional findings were identified.
-                      </p>
-                    ) : (
-                      debrief.key_findings.map((finding, index) => (
-                        <div
-                          key={`finding-${index}`}
-                          className="flex gap-3"
-                        >
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-400" />
-
-                          <p className="text-xs leading-5 text-gray-400">
-                            {finding}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                    Areas of Concern
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    {debrief.areas_of_concern.length === 0 ? (
-                      <p className="text-xs text-emerald-400/80">
-                        No areas of concern identified.
-                      </p>
-                    ) : (
-                      debrief.areas_of_concern.map((concern, index) => (
-                        <div
-                          key={`concern-${index}`}
-                          className="flex gap-3"
-                        >
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#e10600]" />
-
-                          <p className="text-xs leading-5 text-gray-400">
-                            {concern}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-[#2a2020] bg-[#171111] p-5">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-gray-600">
-                    Recommendations
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    {debrief.recommendations.length === 0 ? (
-                      <p className="text-xs text-gray-600">
-                        No additional recommendations were generated.
-                      </p>
-                    ) : (
-                      debrief.recommendations.map((recommendation, index) => (
-                        <div
-                          key={`recommendation-${index}`}
-                          className="flex gap-3"
-                        >
-                          <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#e10600]" />
-
-                          <p className="text-xs leading-5 text-gray-400">
-                            {recommendation}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <footer className="mt-10 border-t border-[#202020] pt-6 text-center">
-
-        <p className="text-[10px] uppercase tracking-[0.25em] text-gray-700">
-          Red Scale · Pilot Assessment Console
-        </p>
-
-        <p className="mt-2 text-xs text-gray-700">
-          Deterministic assessment · AI-assisted mission debriefing
-        </p>
-
-      </footer>
+        </section>
+      )}
 
     </div>
   );

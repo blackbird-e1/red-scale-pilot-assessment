@@ -274,6 +274,15 @@ export default function App() {
         />
 
         <ChatAssistant />
+        <footer className="border-t border-[#202020] px-5 py-10 text-center">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-gray-700">
+            Red Scale · Trainee Portal
+          </p>
+
+          <p className="mt-2 text-xs text-gray-700">
+            Review your flight performance and mission debriefs
+          </p>
+        </footer>
       </div>
     );
   }

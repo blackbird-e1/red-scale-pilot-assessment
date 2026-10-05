@@ -19,6 +19,7 @@ export default function PilotDNA({ pilotId }: PilotDNAProps) {
   const [dna, setDna] = useState<PilotDNAType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emptyState, setEmptyState] = useState(false);
 
   useEffect(() => {
     async function loadPilotDNA() {
@@ -36,12 +37,15 @@ export default function PilotDNA({ pilotId }: PilotDNAProps) {
           recurring_violations: data.recurring_violations ?? [],
         });
       } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError('Unable to load Pilot DNA.');
-        }
-      } finally {
+          if (err instanceof Error && err.message.includes('(422)')) {
+            setEmptyState(true);
+            setDna(null);
+          } else if (err instanceof Error) {
+            setError(err.message);
+          } else {
+            setError('Unable to load Pilot DNA.');
+          }
+        } finally {
         setLoading(false);
       }
     }
@@ -53,6 +57,22 @@ export default function PilotDNA({ pilotId }: PilotDNAProps) {
     return (
       <div className="p-6">
         <p className="text-gray-500">Loading Pilot DNA...</p>
+      </div>
+    );
+  }
+
+  if (emptyState) {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl border border-gray-800 bg-[#111111] p-8">
+          <h2 className="text-lg font-semibold text-white">
+            Pilot DNA
+          </h2>
+
+          <p className="mt-2 text-sm leading-6 text-gray-400">
+            Complete a few flight assessments to start building your Pilot DNA.
+          </p>
+        </div>
       </div>
     );
   }

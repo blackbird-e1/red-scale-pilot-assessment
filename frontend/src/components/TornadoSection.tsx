@@ -9,9 +9,9 @@ export default function TornadoSection({
 }: TornadoSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
-  return (
-    <section className="border-t border-[#202020] py-10 sm:py-12">
-      <div className="mx-auto max-w-4xl rounded-3xl border border-[#252525] bg-[#0f0f0f] px-7 py-7 sm:px-10">
+return (
+  <section className="border-t border-[#202020] py-6 sm:py-8">
+    <div className="mx-auto max-w-4xl rounded-3xl border border-[#252525] bg-[#0f0f0f] px-7 py-7 sm:px-10">
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
