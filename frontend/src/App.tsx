@@ -17,6 +17,7 @@ import TraineeDashboard from './components/TraineeDashboard';
 import PilotDNA from './components/PilotDNA';
 import AutonomousFlightAssessment from './components/AutonomousFlightAssessment';
 import AdminDashboard from './components/AdminDashboard';
+import TornadoSection from './components/TornadoSection';
 
 const CAPABILITIES = [
   {
@@ -92,6 +93,8 @@ export default function App() {
     const [selectedTraineeId, setSelectedTraineeId] = useState('');
     const [fileName, setFileName] = useState('');
     const [showAutonomy, setShowAutonomy] = useState(false);
+    const [showAuthenticatedTornado, setShowAuthenticatedTornado] =
+      useState(false);
 
     useEffect(() => {
       async function validateSession() {
@@ -222,6 +225,14 @@ export default function App() {
     );
   }
 
+  if (showAuthenticatedTornado) {
+      return (
+        <AutonomousFlightAssessment
+          onBack={() => setShowAuthenticatedTornado(false)}
+        />
+      );
+    }
+
   if (auth.role === 'admin') {
     return (
       <div className="flex min-h-screen flex-col bg-[#0c0c0c]">
@@ -234,6 +245,10 @@ export default function App() {
         />
 
         <AdminDashboard />
+
+        <TornadoSection
+          onOpen={() => setShowAuthenticatedTornado(true)}
+        />
       </div>
     );
   }
@@ -254,7 +269,20 @@ export default function App() {
           pilotId={auth.id}
         />
 
+        <TornadoSection
+          onOpen={() => setShowAuthenticatedTornado(true)}
+        />
+
         <ChatAssistant />
+        <footer className="border-t border-[#202020] px-5 py-10 text-center">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-gray-700">
+            Red Scale · Trainee Portal
+          </p>
+
+          <p className="mt-2 text-xs text-gray-700">
+            Review your flight performance and mission debriefs
+          </p>
+        </footer>
       </div>
     );
   }
@@ -520,6 +548,10 @@ export default function App() {
           </div>
         )}
       </main>
+
+      <TornadoSection
+        onOpen={() => setShowAuthenticatedTornado(true)}
+      />
       <ChatAssistant />
 
       <footer className="border-t border-[#202020] px-5 py-6 text-center">

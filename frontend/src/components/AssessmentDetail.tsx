@@ -6,11 +6,13 @@ import FlightReplay from './replay/FlightReplay';
 interface AssessmentDetailProps {
   assessmentId: string;
   onBack: () => void;
+  showDebrief?: boolean;
 }
 
 export default function AssessmentDetail({
   assessmentId,
   onBack,
+  showDebrief = true,
 }: AssessmentDetailProps) {
   const [assessment, setAssessment] =
     useState<AssessmentDetailType | null>(null);
@@ -179,6 +181,7 @@ export default function AssessmentDetail({
         <AssessmentResults
           assessment={assessment}
           fileName={assessment.source_filename}
+          showDebrief={showDebrief}
         />
 
         <FlightReplay assessmentId={assessment.id} />
