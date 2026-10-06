@@ -1,9 +1,11 @@
-import math
-
 import numpy as np
 
+from app.tornado.schemas import TornadoEvent
+from app.tornado.schemas import TornadoEvidence
 from app.tornado.schemas import TornadoFlight
-from app.tornado.schemas import TornadoEvent, TornadoEvidence
+from app.tornado.schemas import TornadoTrajectory
+from app.tornado.schemas import TornadoTrajectoryDeviation
+from app.tornado.schemas import TornadoTrajectoryPoint
 
 def _interpolate_reference(
     flight: TornadoFlight,
@@ -274,8 +276,12 @@ def evaluate_tornado_flight(
         ),
     }
 
-def calculate_trajectory_error_series(flight):
-    telemetry_times, reference_positions = _interpolate_reference(flight)
+def _calculate_trajectory_data(
+    flight: TornadoFlight,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    telemetry_times, reference_positions = _interpolate_reference(
+        flight
+    )
 
     actual_positions = np.array(
         [
@@ -294,4 +300,73 @@ def calculate_trajectory_error_series(flight):
         axis=1,
     )
 
+    return (
+        telemetry_times,
+        actual_positions,
+        reference_positions,
+        errors,
+    )
+
+
+def calculate_trajectory_error_series(
+    flight: TornadoFlight,
+) -> tuple[np.ndarray, np.ndarray]:
+    telemetry_times, _, _, errors = _calculate_trajectory_data(
+        flight
+    )
+
     return telemetry_times, errors
+
+
+def build_trajectory_series(
+    flight: TornadoFlight,
+) -> TornadoTrajectory:
+    (
+        telemetry_times,
+        actual_positions,
+        reference_positions,
+        errors,
+    ) = _calculate_trajectory_data(flight)
+
+    actual = [
+        TornadoTrajectoryPoint(
+            timestamp_sec=float(timestamp),
+            x_m=float(position[0]),
+            y_m=float(position[1]),
+            z_m=float(position[2]),
+        )
+        for timestamp, position in zip(
+            telemetry_times,
+            actual_positions,
+        )
+    ]
+
+    reference = [
+        TornadoTrajectoryPoint(
+            timestamp_sec=float(timestamp),
+            x_m=float(position[0]),
+            y_m=float(position[1]),
+            z_m=float(position[2]),
+        )
+        for timestamp, position in zip(
+            telemetry_times,
+            reference_positions,
+        )
+    ]
+
+    deviation = [
+        TornadoTrajectoryDeviation(
+            timestamp_sec=float(timestamp),
+            error_m=float(error),
+        )
+        for timestamp, error in zip(
+            telemetry_times,
+            errors,
+        )
+    ]
+
+    return TornadoTrajectory(
+        actual=actual,
+        reference=reference,
+        deviation=deviation,
+    )

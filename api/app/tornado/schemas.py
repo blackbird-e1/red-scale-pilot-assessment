@@ -49,12 +49,29 @@ class TornadoEvent(BaseModel):
     description: str
     evidence: list[TornadoEvidence] = Field(default_factory=list)
 
+class TornadoTrajectoryPoint(BaseModel):
+    timestamp_sec: float
+    x_m: float
+    y_m: float
+    z_m: float
+
+
+class TornadoTrajectoryDeviation(BaseModel):
+    timestamp_sec: float
+    error_m: float
+
+
+class TornadoTrajectory(BaseModel):
+    actual: list[TornadoTrajectoryPoint]
+    reference: list[TornadoTrajectoryPoint]
+    deviation: list[TornadoTrajectoryDeviation]
+
 class TornadoAssessmentResult(BaseModel):
     flight_id: str
     duration_sec: float
+    trajectory: TornadoTrajectory
     metrics: dict
     events: list[TornadoEvent] = Field(default_factory=list)
-
     
 class TornadoFlight(BaseModel):
     flight_id: str
