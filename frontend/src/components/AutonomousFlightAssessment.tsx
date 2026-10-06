@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import TornadoTrajectoryAnalysis from "./TornadoTrajectoryAnalysis";
 import type {
   DebriefResponse,
   TornadoAssessmentResult,
@@ -565,6 +566,11 @@ export default function AutonomousFlightAssessment({
                   />
                 </div>
               </section>
+
+              <TornadoTrajectoryAnalysis
+                trajectory={result.trajectory}
+                events={result.events}
+              />
 
               <section className="rounded-2xl border border-[#252525] bg-[#111111] p-6">
                 <div className="mb-5">
