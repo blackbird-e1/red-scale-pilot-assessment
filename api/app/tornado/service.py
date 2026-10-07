@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from app.tornado.adapter import load_tornado_flight
+from app.tornado.evaluator import build_trajectory_series
 from app.tornado.evaluator import evaluate_tornado_flight
 from app.tornado.events import detect_trajectory_deviation_events
 
@@ -17,11 +18,13 @@ def assess_tornado_flight(
     )
 
     metrics = evaluate_tornado_flight(flight)
+    trajectory = build_trajectory_series(flight)
     events = detect_trajectory_deviation_events(flight)
 
     return {
         "flight_id": flight.flight_id,
         "duration_sec": flight.duration_sec,
+        "trajectory": trajectory.model_dump(),
         "metrics": metrics,
         "events": [event.model_dump() for event in events],
     }

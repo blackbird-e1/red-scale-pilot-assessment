@@ -1,3 +1,5 @@
+import { authenticatedFetch } from '../api/client';
+
 import { useEffect, useState } from 'react';
 import FlightCharts from './FlightCharts';
 import type {
@@ -273,7 +275,7 @@ export default function AssessmentResults({
       setDebriefError(null);
 
       try {
-        const response = await fetch('/api/v1/debrief', {
+        const response = await authenticatedFetch('/debrief', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

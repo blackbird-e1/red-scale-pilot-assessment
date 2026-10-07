@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import TornadoTrajectoryAnalysis from "./TornadoTrajectoryAnalysis";
 import type {
   DebriefResponse,
   TornadoAssessmentResult,
   TornadoExampleFlight,
 } from "../types";
+import { authenticatedFetch } from "../api/client";
 
 interface AutonomousFlightAssessmentProps {
   onBack: () => void;
@@ -51,7 +53,7 @@ export default function AutonomousFlightAssessment({
       setLoadingExamples(true);
       setError("");
 
-      const response = await fetch("/api/v1/tornado/examples");
+      const response = await authenticatedFetch("/tornado/examples");
 
       if (!response.ok) {
         throw new Error("Failed to load example flights.");
@@ -83,8 +85,8 @@ export default function AutonomousFlightAssessment({
       setDebriefError("");
       setDebrief(null);
 
-      const response = await fetch(
-        "/api/v1/tornado/debrief",
+      const response = await authenticatedFetch(
+        "/tornado/debrief",
         {
           method: "POST",
           headers: {
@@ -129,8 +131,8 @@ export default function AutonomousFlightAssessment({
       setError("");
       setResult(null);
 
-      const response = await fetch(
-        `/api/v1/tornado/examples/${selectedFlight}/assess`,
+      const response = await authenticatedFetch(
+        `/tornado/examples/${selectedFlight}/assess`,
         {
           method: "POST",
         },
@@ -153,7 +155,6 @@ export default function AutonomousFlightAssessment({
       setAssessing(false);
     }
   }
-
   async function assessUploadedFlight() {
     if (!telemetryFile || !referenceFile || !flightId.trim()) {
       setError("Please select both CSV files and enter a flight ID.");
@@ -171,10 +172,13 @@ export default function AutonomousFlightAssessment({
       formData.append("reference_csv", referenceFile);
       formData.append("flight_id", flightId.trim());
 
-      const response = await fetch("/api/v1/tornado/assess", {
-        method: "POST",
-        body: formData,
-      });
+      const response = await authenticatedFetch(
+        "/tornado/assess",
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
@@ -565,6 +569,11 @@ export default function AutonomousFlightAssessment({
                   />
                 </div>
               </section>
+
+              <TornadoTrajectoryAnalysis
+                trajectory={result.trajectory}
+                events={result.events}
+              />
 
               <section className="rounded-2xl border border-[#252525] bg-[#111111] p-6">
                 <div className="mb-5">

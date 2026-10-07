@@ -83,7 +83,6 @@ export default function TraineeDashboard({
       <AssessmentDetail
         assessmentId={selectedAssessmentId}
         onBack={() => setSelectedAssessmentId(null)}
-        showDebrief={false}
       />
     );
   }

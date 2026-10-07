@@ -258,9 +258,28 @@ export interface TornadoEvent {
   evidence: TornadoEvidence[];
 }
 
+export interface TornadoTrajectoryPoint {
+  timestamp_sec: number;
+  x_m: number;
+  y_m: number;
+  z_m: number;
+}
+
+export interface TornadoTrajectoryDeviation {
+  timestamp_sec: number;
+  error_m: number;
+}
+
+export interface TornadoTrajectory {
+  actual: TornadoTrajectoryPoint[];
+  reference: TornadoTrajectoryPoint[];
+  deviation: TornadoTrajectoryDeviation[];
+}
+
 export interface TornadoAssessmentResult {
   flight_id: string;
   duration_sec: number;
+  trajectory: TornadoTrajectory;
   metrics: TornadoMetricSet;
   events: TornadoEvent[];
 }
