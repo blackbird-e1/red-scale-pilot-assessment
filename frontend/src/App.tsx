@@ -18,6 +18,7 @@ import PilotDNA from './components/PilotDNA';
 import AutonomousFlightAssessment from './components/AutonomousFlightAssessment';
 import AdminDashboard from './components/AdminDashboard';
 import TornadoSection from './components/TornadoSection';
+import TrainerDashboard from './components/TrainerDashboard';
 
 const CAPABILITIES = [
   {
@@ -281,6 +282,37 @@ export default function App() {
 
           <p className="mt-2 text-xs text-gray-700">
             Review your flight performance and mission debriefs
+          </p>
+        </footer>
+      </div>
+    );
+  }
+
+  if (auth.role === 'trainer') {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#0c0c0c]">
+        <Header
+          onNewAssessment={handleNewAssessment}
+          hasAssessment={assessment !== null}
+          username={auth.name}
+          role={auth.role}
+          onLogout={handleLogout}
+        />
+
+        <TrainerDashboard trainees={trainees} />
+
+        <TornadoSection
+          onOpen={() => setShowAuthenticatedTornado(true)}
+        />
+
+        <ChatAssistant />
+
+        <footer className="border-t border-[#202020] px-5 py-6 text-center">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-gray-700">
+            Red Scale · Trainer Console
+          </p>
+          <p className="mt-2 text-xs text-gray-700">
+            Flight assessment and training management
           </p>
         </footer>
       </div>
