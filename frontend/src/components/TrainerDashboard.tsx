@@ -3,7 +3,7 @@ import FDRUpload from './FDRUpload';
 import AssessmentResults from './AssessmentResults';
 import type { Assessment } from '../types';
 import type { Trainee } from '../api/auth';
-
+import TrainerAssessmentOverview from './TrainerAssessmentOverview';
 interface TrainerDashboardProps {
   trainees: Trainee[];
 }
@@ -84,34 +84,36 @@ export default function TrainerDashboard({
           </div>
         </section>
 
-        {showNewAssessment && (
-          <section className="mt-6 rounded-3xl border border-[#2b2b2b] bg-[#111111] p-6 sm:p-8">
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white">
-                  New Assessment
-                </h2>
-                <p className="mt-2 text-sm text-gray-500">
-                  Upload flight data and select the trainee being assessed.
-                </p>
-              </div>
+        {showNewAssessment ? (
+            <section className="mt-6 rounded-3xl border border-[#2b2b2b] bg-[#111111] p-6 sm:p-8">
+                <div className="mb-6 flex items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-lg font-semibold text-white">
+                    New Assessment
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-500">
+                    Upload flight data and select the trainee being assessed.
+                    </p>
+                </div>
 
-              <button
-                type="button"
-                onClick={() => setShowNewAssessment(false)}
-                className="text-sm text-gray-500 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
+                <button
+                    type="button"
+                    onClick={() => setShowNewAssessment(false)}
+                    className="text-sm text-gray-500 hover:text-white"
+                >
+                    Close
+                </button>
+                </div>
 
-            <FDRUpload
-              onAssessment={handleAssessment}
-              trainees={trainees}
-              onTraineeChange={setSelectedTraineeId}
-            />
-          </section>
-        )}
+                <FDRUpload
+                onAssessment={handleAssessment}
+                trainees={trainees}
+                onTraineeChange={setSelectedTraineeId}
+                />
+            </section>
+            ) : (
+            <TrainerAssessmentOverview trainees={trainees} />
+            )}
       </div>
     </main>
   );
