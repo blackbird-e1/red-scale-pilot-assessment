@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class AssessmentHistoryItem(BaseModel):
     id: UUID
     created_at: datetime
+    created_by: UUID
 
     source_filename: str
 

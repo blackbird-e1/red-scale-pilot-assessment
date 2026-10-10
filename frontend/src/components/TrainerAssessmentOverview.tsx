@@ -1,6 +1,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getPilotAssessmentHistory } from '../api/assessment';
+import {
+  deleteAssessment,
+  getPilotAssessmentHistory,
+} from '../api/assessment';
 import type { Trainee } from '../api/auth';
 import type { AssessmentHistoryItem } from '../types';
 import AssessmentDetail from './AssessmentDetail';
@@ -13,11 +16,15 @@ interface TrainerAssessment extends AssessmentHistoryItem {
 
 interface TrainerAssessmentOverviewProps {
   trainees: Trainee[];
+  currentUserId: string;
 }
 
 function formatDate(value: string) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date unavailable';
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Date unavailable';
+  }
 
   return date.toLocaleDateString(undefined, {
     day: '2-digit',
@@ -29,11 +36,13 @@ function formatDate(value: string) {
 function formatDuration(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.round(seconds % 60);
+
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
 
 export default function TrainerAssessmentOverview({
   trainees,
+  currentUserId,
 }: TrainerAssessmentOverviewProps) {
   const [assessments, setAssessments] = useState<TrainerAssessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +51,10 @@ export default function TrainerAssessmentOverview({
   const [selectedAssessmentId, setSelectedAssessmentId] =
     useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [deletingAssessmentId, setDeletingAssessmentId] =
+    useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteSuccess, setDeleteSuccess] = useState('');
 
   const loadAssessments = useCallback(async () => {
     if (trainees.length === 0) {
@@ -58,6 +71,7 @@ export default function TrainerAssessmentOverview({
       const histories = await Promise.all(
         trainees.map(async (trainee) => {
           const history = await getPilotAssessmentHistory(trainee.id);
+
           return history.map((item) => ({
             ...item,
             pilotId: trainee.id,
@@ -89,8 +103,46 @@ export default function TrainerAssessmentOverview({
     void loadAssessments();
   }, [loadAssessments, refreshKey]);
 
+  async function handleDeleteAssessment(item: TrainerAssessment) {
+    if (item.created_by !== currentUserId) {
+      setDeleteError('You can only delete assessments you created.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete "${item.source_filename}" for ${item.pilotName}?\n\nThis action cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setDeletingAssessmentId(item.id);
+    setDeleteError('');
+    setDeleteSuccess('');
+
+    try {
+      await deleteAssessment(item.id);
+
+      setAssessments((previous) =>
+        previous.filter((assessment) => assessment.id !== item.id),
+      );
+
+      setDeleteSuccess(
+        `Assessment "${item.source_filename}" was deleted successfully.`,
+      );
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to delete this assessment.',
+      );
+    } finally {
+      setDeletingAssessmentId(null);
+    }
+  }
+
   const filteredAssessments = useMemo(() => {
     const query = search.trim().toLowerCase();
+
     if (!query) return assessments;
 
     return assessments.filter((item) =>
@@ -120,9 +172,11 @@ export default function TrainerAssessmentOverview({
           <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#e10600]">
             Training Records
           </p>
+
           <h2 className="mt-2 text-2xl font-semibold text-white">
             Assessment Overview
           </h2>
+
           <p className="mt-2 text-sm text-gray-500">
             Review assessments across your trainees, newest first.
           </p>
@@ -130,13 +184,35 @@ export default function TrainerAssessmentOverview({
 
         <button
           type="button"
-          onClick={() => setRefreshKey((key) => key + 1)}
+          onClick={() => {
+            setDeleteError('');
+            setDeleteSuccess('');
+            setRefreshKey((key) => key + 1);
+          }}
           disabled={loading}
           className="rounded-xl border border-[#303030] px-4 py-2.5 text-sm font-medium text-gray-300 transition hover:border-[#e10600]/50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Refreshing…' : 'Refresh'}
         </button>
       </div>
+
+      {deleteError && (
+        <div
+          role="alert"
+          className="mt-4 rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-300"
+        >
+          {deleteError}
+        </div>
+      )}
+
+      {deleteSuccess && (
+        <div
+          role="status"
+          className="mt-4 rounded-xl border border-green-900/50 bg-green-950/20 p-4 text-sm text-green-300"
+        >
+          {deleteSuccess}
+        </div>
+      )}
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-[#252525] bg-[#161616] p-4">
@@ -147,6 +223,7 @@ export default function TrainerAssessmentOverview({
             {trainees.length}
           </p>
         </div>
+
         <div className="rounded-2xl border border-[#252525] bg-[#161616] p-4">
           <p className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
             Assessments
@@ -155,6 +232,7 @@ export default function TrainerAssessmentOverview({
             {assessments.length}
           </p>
         </div>
+
         <div className="rounded-2xl border border-[#252525] bg-[#161616] p-4">
           <p className="text-[10px] uppercase tracking-[0.18em] text-gray-600">
             Visible Results
@@ -201,13 +279,14 @@ export default function TrainerAssessmentOverview({
         <div className="mt-6 rounded-2xl border border-[#252525] bg-[#161616] p-8">
           <h3 className="font-semibold text-white">No trainees available</h3>
           <p className="mt-2 text-sm leading-6 text-gray-500">
-            Check that the backend is running and your trainer account can access trainees.
+            Check that the backend is running and your trainer account can
+            access trainees.
           </p>
         </div>
       ) : assessments.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-[#252525] bg-[#161616] p-8">
           <h3 className="font-semibold text-white">No assessments yet</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-500">
+          <p className="mt-2 text-sm text-gray-500">
             Completed assessments for your trainees will appear here.
           </p>
         </div>
@@ -229,8 +308,12 @@ export default function TrainerAssessmentOverview({
                   <h3 className="break-words text-sm font-semibold text-white">
                     {item.source_filename}
                   </h3>
-                  <p className="mt-2 text-sm text-gray-300">{item.pilotName}</p>
-                  <p className="mt-1 text-xs text-gray-600">{item.pilotEmail}</p>
+                  <p className="mt-2 text-sm text-gray-300">
+                    {item.pilotName}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    {item.pilotEmail}
+                  </p>
                   <p className="mt-2 text-xs text-gray-500">
                     {formatDate(item.created_at)}
                   </p>
@@ -255,6 +338,7 @@ export default function TrainerAssessmentOverview({
                     {formatDuration(item.duration_sec)}
                   </p>
                 </div>
+
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.15em] text-gray-600">
                     Max Speed
@@ -263,6 +347,7 @@ export default function TrainerAssessmentOverview({
                     {Math.round(item.max_speed_knots)} kt
                   </p>
                 </div>
+
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.15em] text-gray-600">
                     Max Bank
@@ -271,6 +356,7 @@ export default function TrainerAssessmentOverview({
                     {Math.round(item.max_bank_angle_deg)}°
                   </p>
                 </div>
+
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.15em] text-gray-600">
                     Max Descent
@@ -285,13 +371,29 @@ export default function TrainerAssessmentOverview({
                 <p className="text-xs text-gray-600">
                   {item.benchmark_id} · v{item.benchmark_version}
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAssessmentId(item.id)}
-                  className="rounded-lg border border-[#e10600]/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-red-300 transition hover:bg-[#e10600]/10"
-                >
-                  View Assessment →
-                </button>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedAssessmentId(item.id)}
+                    className="rounded-lg border border-[#e10600]/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-red-300 transition hover:bg-[#e10600]/10"
+                  >
+                    View Assessment →
+                  </button>
+
+                  {item.created_by === currentUserId && (
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteAssessment(item)}
+                      disabled={deletingAssessmentId !== null}
+                      className="rounded-lg border border-red-900/60 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-red-400 transition hover:bg-red-950/40 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingAssessmentId === item.id
+                        ? 'Deleting…'
+                        : 'Delete'}
+                    </button>
+                  )}
+                </div>
               </div>
             </article>
           ))}

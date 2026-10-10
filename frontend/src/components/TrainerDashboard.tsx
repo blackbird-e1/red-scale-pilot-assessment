@@ -6,10 +6,12 @@ import type { Trainee } from '../api/auth';
 import TrainerAssessmentOverview from './TrainerAssessmentOverview';
 interface TrainerDashboardProps {
   trainees: Trainee[];
+  currentUserId: string;
 }
 
 export default function TrainerDashboard({
   trainees,
+  currentUserId,
 }: TrainerDashboardProps) {
   const [showNewAssessment, setShowNewAssessment] = useState(false);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
@@ -65,23 +67,31 @@ export default function TrainerDashboard({
             Create flight assessments and manage trainee performance records.
           </p>
 
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-4 sm:flex-row">
             <button
-              type="button"
-              onClick={handleNewAssessment}
-              className="rounded-xl bg-[#e10600] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#c90500]"
+                type="button"
+                onClick={handleNewAssessment}
+                className={`rounded-xl px-5 py-3 text-sm font-semibold transition ${
+                showNewAssessment
+                    ? 'bg-[#e10600] text-white hover:bg-[#c90500]'
+                    : 'border border-[#303030] text-gray-300 hover:border-[#e10600]/50'
+                }`}
             >
-              + New Assessment
+                + New Assessment
             </button>
 
             <button
-              type="button"
-              onClick={() => setShowNewAssessment(false)}
-              className="rounded-xl border border-[#303030] px-5 py-3 text-sm font-semibold text-gray-300 transition hover:border-[#e10600]/50"
+                type="button"
+                onClick={() => setShowNewAssessment(false)}
+                className={`rounded-xl px-5 py-3 text-sm font-semibold transition ${
+                !showNewAssessment
+                    ? 'bg-[#e10600] text-white hover:bg-[#c90500]'
+                    : 'border border-[#303030] text-gray-300 hover:border-[#e10600]/50'
+                }`}
             >
-              Dashboard Overview
+                Dashboard Overview
             </button>
-          </div>
+        </div>
         </section>
 
         {showNewAssessment ? (
@@ -112,7 +122,10 @@ export default function TrainerDashboard({
                 />
             </section>
             ) : (
-            <TrainerAssessmentOverview trainees={trainees} />
+            <TrainerAssessmentOverview
+                trainees={trainees}
+                currentUserId={currentUserId}
+            />
             )}
       </div>
     </main>

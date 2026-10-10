@@ -289,6 +289,7 @@ async def get_pilot_assessment_history(
         AssessmentHistoryItem(
             id=record.id,
             created_at=record.created_at,
+            created_by=record.created_by,
             source_filename=record.source_filename,
             benchmark_id=record.benchmark_id,
             benchmark_version=record.benchmark_version,
@@ -383,17 +384,10 @@ async def get_assessment(
         telemetry=record.telemetry,
     )
 
-@router.get(
-    "/pilot/{pilot_id}/dna",
-    response_model=PilotDNA,
-    status_code=status.HTTP_200_OK,
-)
-
 @router.delete(
     "/{assessment_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-
 async def delete_assessment(
     assessment_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -406,7 +400,6 @@ async def delete_assessment(
     Trainers can delete assessments they created.
     Trainees cannot delete assessments.
     """
-
     result = await db.execute(
         select(AssessmentRecord).where(
             AssessmentRecord.id == assessment_id
@@ -438,6 +431,13 @@ async def delete_assessment(
 
     await db.delete(record)
     await db.commit()
+
+
+@router.get(
+    "/pilot/{pilot_id}/dna",
+    response_model=PilotDNA,
+    status_code=status.HTTP_200_OK,
+)
 async def get_pilot_dna(
     pilot_id: UUID,
     current_user: User = Depends(get_current_user),
@@ -449,11 +449,6 @@ async def get_pilot_dna(
     Trainers can view any trainee's Pilot DNA.
     Trainees can only view their own Pilot DNA.
     """
-
-    # ---------------------------------------------------------
-    # Validate pilot
-    # ---------------------------------------------------------
-
     result = await db.execute(
         select(User).where(
             User.id == pilot_id,
@@ -469,10 +464,6 @@ async def get_pilot_dna(
             detail="Pilot/trainee not found.",
         )
 
-    # ---------------------------------------------------------
-    # Authorization
-    # ---------------------------------------------------------
-
     if current_user.role == UserRole.TRAINEE:
         if pilot_id != current_user.id:
             raise HTTPException(
@@ -480,29 +471,16 @@ async def get_pilot_dna(
                 detail="You can only access your own Pilot DNA.",
             )
 
-    # ---------------------------------------------------------
-    # Fetch assessment history
-    # ---------------------------------------------------------
-
     result = await db.execute(
         select(AssessmentRecord)
-        .where(
-            AssessmentRecord.pilot_id == pilot_id
-        )
-        .order_by(
-            AssessmentRecord.created_at.asc()
-        )
+        .where(AssessmentRecord.pilot_id == pilot_id)
+        .order_by(AssessmentRecord.created_at.asc())
     )
 
     records = list(result.scalars().all())
 
-    # ---------------------------------------------------------
-    # Build Pilot DNA
-    # ---------------------------------------------------------
-
     try:
         return build_pilot_dna(records)
-
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

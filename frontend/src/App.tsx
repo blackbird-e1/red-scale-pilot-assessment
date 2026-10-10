@@ -299,7 +299,10 @@ export default function App() {
           onLogout={handleLogout}
         />
 
-        <TrainerDashboard trainees={trainees} />
+        <TrainerDashboard
+          trainees={trainees}
+          currentUserId={auth.id}
+        />
 
         <TornadoSection
           onOpen={() => setShowAuthenticatedTornado(true)}
