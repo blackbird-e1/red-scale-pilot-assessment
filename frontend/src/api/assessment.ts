@@ -151,3 +151,31 @@ export async function getPilotDNA(
 
   return response.json() as Promise<PilotDNA>;
 }
+
+
+export async function deleteAssessment(
+  assessmentId: string,
+): Promise<void> {
+  const response = await authenticatedFetch(
+    `/assessment/${assessmentId}`,
+    {
+      method: 'DELETE',
+    },
+  );
+
+  if (!response.ok) {
+    let message = `Unable to delete assessment (${response.status})`;
+
+    try {
+      const data = await response.json();
+
+      if (typeof data.detail === 'string') {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+}

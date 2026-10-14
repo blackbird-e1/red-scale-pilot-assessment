@@ -142,9 +142,11 @@ export interface StreamChunk {
   conversation_id?: string | null;
 }
 
+
 export interface AssessmentHistoryItem {
   id: string;
   created_at: string;
+  created_by: string;
   source_filename: string;
   benchmark_id: string;
   benchmark_version: string;
@@ -155,6 +157,7 @@ export interface AssessmentHistoryItem {
   max_bank_angle_deg: number;
   max_descent_rate_fpm: number;
 }
+
 
 export interface AssessmentDetail {
   id: string;
