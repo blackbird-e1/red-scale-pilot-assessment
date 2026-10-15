@@ -245,12 +245,12 @@ export default function AutonomousFlightAssessment({
             </span>
 
             <span className="text-[10px] uppercase tracking-[0.2em] text-gray-600">
-              Autonomous Flight Assessment
+              Data Analytics for Air Trajectory
             </span>
           </div>
 
           <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            Autonomous Flight Assessment
+            Data Analytics for Air Trajectory
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 sm:text-base">

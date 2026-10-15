@@ -452,7 +452,7 @@ export default function Login({
                 </div>
 
                 <h2 className="mt-3 text-xl font-semibold text-gray-200 sm:text-2xl">
-                  Autonomous Flight Assessment
+                  Data Analytics for Air Trajectory
                 </h2>
 
                 <p className="mt-2 max-w-xl text-sm leading-6 text-gray-600">

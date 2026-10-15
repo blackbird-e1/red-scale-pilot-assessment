@@ -11,7 +11,7 @@ export default function TornadoSection({
 
 return (
   <section className="border-t border-[#202020] py-6 sm:py-8">
-    <div className="mx-auto max-w-4xl rounded-3xl border border-[#252525] bg-[#0f0f0f] px-7 py-7 sm:px-10">
+    <div className="mx-auto max-w-2xl rounded-3xl border border-[#252525] bg-[#0f0f0f] px-7 py-7 sm:px-10">
         <button
           type="button"
           onClick={() => setExpanded(!expanded)}
@@ -23,7 +23,7 @@ return (
             </p>
 
             <h2 className="mt-2 text-xl font-semibold text-gray-200">
-              Autonomous Flight Assessment
+              Data Analytics for Air Trajectory
             </h2>
           </div>
 
